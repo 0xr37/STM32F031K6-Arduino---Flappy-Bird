@@ -1,0 +1,541 @@
+/*
+Fully done for the most part,
+just need to add the main menu and stuff
+next up: jump king, thats gonna rip some hair out
+*/
+
+#include <stm32f031x6.h>
+#include "display.h"
+#include <stdio.h>
+#include "prbs.h"
+#include "serial.h"
+#define BLUE 33020
+#define MINSCREENX 0
+#define MINSCREENY 0
+#define MAXSCREENX 127
+#define MAXSCREENY 159
+#define PIPEAMT 3
+#define PIPEWIDTH 14
+#define PIPEHEIGHT 4
+#define BIRDWIDTH 17
+#define BIRDHEIGHT 12
+#define spawnGap 50
+
+int isInside(uint16_t x1, uint16_t y1, uint16_t w, uint16_t h, uint16_t px, uint16_t py);
+void initClock(void);
+void initSysTick(void);
+void SysTick_Handler(void);
+void delay(volatile uint32_t dly);
+void setupIO();
+void enablePullUp(GPIO_TypeDef *Port, uint32_t BitNumber);
+void pinMode(GPIO_TypeDef *Port, uint32_t BitNumber, uint32_t Mode);
+volatile uint32_t milliseconds;
+
+
+int upPressed();
+int downPressed();
+int leftPressed();
+int rightPressed();
+int anyButtonPressed();
+
+void flapping();
+void gameLoop();
+void initPipe();
+void movePipe();
+
+void drawPipe();
+void drawPipeTop();
+void drawPipeBottom();
+void endOfPipeCheck();
+void initPipe();
+
+
+struct pipe{
+	int x;
+	uint16_t y;
+	int oldx;
+	uint16_t oldy;
+
+	uint16_t speed;
+	uint16_t start;
+	uint16_t gap;
+	
+	int active;
+};
+
+struct bird{
+	uint16_t x;
+	int y;
+
+	uint16_t oldx;
+	int oldy;
+
+	uint16_t jumpStrength;
+	float gravity;
+	float birdVelocity;
+};
+
+struct pipe pipes[PIPEAMT];
+struct bird bird[1];
+
+
+const uint16_t bird1[]=
+{
+	5536,5536,5536,5536,5536,5536,2625,2625,2625,2625,2625,2625,5536,5536,5536,5536,5536,5536,5536,5536,5536,2625,2625,65422,65422,65422,2625,24575,24575,2625,5536,5536,5536,5536,5536,5536,5536,2625,65422,65422,65333,65333,2625,24575,24575,24575,24575,2625,5536,5536,5536,5536,2625,2625,2625,2625,65333,65333,65333,2625,56015,24575,24575,2625,24575,2625,5536,5536,2625,24575,24575,24575,24575,2625,65333,65333,2625,56015,24575,24575,2625,24575,2625,5536,5536,2625,24575,24575,24575,24575,24575,2625,65333,65333,2625,56015,24575,24575,24575,2625,5536,5536,2625,65422,24575,24575,24575,65422,2625,65333,65333,65333,2625,2625,2625,2625,2625,2625,5536,5536,2625,65422,65422,65422,2625,65333,65333,65333,2625,7937,7937,7937,7937,7937,7937,2625,5536,5536,2625,2625,2625,7212,7212,7212,2625,7937,2625,2625,2625,2625,2625,2625,5536,5536,5536,2625,7212,7212,7212,7212,7212,7212,2625,7937,7937,7937,7937,7937,2625,5536,5536,5536,5536,2625,2625,7212,7212,7212,7212,7212,2625,2625,2625,2625,2625,5536,5536,5536,5536,5536,5536,5536,2625,2625,2625,2625,2625,5536,5536,5536,5536,5536,5536,5536,
+};
+
+const uint16_t pipe1[]=
+{
+	2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,64391,31887,64655,31887,39815,14719,6263,22118,5214,29269,4429,28477,11828,60460,2852,18980,10788,27164,2625,2625,23167,56199,23695,48007,47743,39031,22382,46438,37982,62029,45125,3901,60724,52268,60196,10788,2596,18972,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,5536,2625,53573,45909,54886,47222,23167,64135,55679,14190,13670,4693,61509,3644,19500,10788,59939,10788,2625,5536,5536,2625,62029,5214,22382,22911,64391,48271,31623,39031,30310,4950,53581,44604,52268,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,62029,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,4950,53581,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,4950,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,4950,53581,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,4950,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,4950,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,4950,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,53837,62558,14190,14719,56199,31887,14983,30839,22118,62293,45389,36412,44076,19236,2596,18972,2625,5536,5536,2625,62029,62558,14190,14719,56199,31887,14983,30839,22118,4950,45389,36412,44076,19236,2596,18972,2625,5536,
+};
+
+const uint16_t pipeStart[]=
+{
+	2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,56463,56463,7047,22911,30574,21854,12877,4165,3380,27692,18980,35356,2625,2625,15239,15495,14983,47479,46702,54366,45645,44869,52532,19500,10788,27164,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,
+};
+
+const uint16_t pipeEnd[]=
+{
+	5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,
+};
+
+
+
+int main()
+{
+
+	initClock();
+	initSysTick();
+	setupIO();
+	initSerial();
+	// putImage(11,151,birdWidth,birdHeight,bird1,0,0); // x, y, width, height, image, hOrientation, vOrientation
+
+	while (1){
+		if(anyButtonPressed()){
+			break;
+		}
+	}
+	delay(500);
+	gameLoop();
+
+	return 0;
+}
+
+
+
+void movePipe(){
+	fillRectangle(pipes[0].oldx, pipes[0].oldy, PIPEWIDTH, PIPEHEIGHT, 0);
+	pipes[0].oldx = pipes[0].x;
+	pipes[0].oldy = pipes[0].y;
+	pipes[0].x -= pipes[0].speed;
+	putImage(pipes[0].x, pipes[0].y, PIPEWIDTH, PIPEHEIGHT, pipe1, 0, 0);
+	
+	if (pipes[0].x < 1){
+		pipes[0].x = MAXSCREENX - PIPEWIDTH;
+		fillRectangle(MINSCREENX, MINSCREENY, PIPEWIDTH, PIPEHEIGHT, 0);
+	}
+}
+
+void drawPipeBottom(int i){
+	fillRectangle(pipes[i].oldx, pipes[i].oldy + pipes[i].gap, PIPEWIDTH, PIPEHEIGHT, 0);
+	pipes[i].oldx = pipes[i].x;
+	pipes[i].oldy = pipes[i].y;
+	pipes[i].x -= pipes[i].speed;
+	putImage(pipes[i].x, pipes[i].y + pipes[i].gap, PIPEWIDTH, PIPEHEIGHT, pipeStart, 0, 0);
+	
+	int start = pipes[i].y + PIPEHEIGHT + pipes[i].gap;
+
+	for(int j = start; j <= MAXSCREENY - 1; j++){
+		fillRectangle(pipes[i].oldx, j, PIPEWIDTH, 1, 0);
+		putImage(pipes[i].x, j, PIPEWIDTH, 1, pipeEnd, 0, 0);
+	}
+}
+
+void drawPipeTop(int i){
+
+	fillRectangle(pipes[i].oldx, pipes[i].oldy - pipes[i].gap , PIPEWIDTH, PIPEHEIGHT, 0);
+	pipes[i].oldx = pipes[i].x;
+	pipes[i].oldy = pipes[i].y;
+	pipes[i].x -= pipes[i].speed;
+
+	
+	putImage(pipes[i].x, pipes[i].y - pipes[i].gap, PIPEWIDTH, PIPEHEIGHT, pipeStart, 0, 0);
+	
+	int start = pipes[i].y - 1 - pipes[i].gap;
+
+	for(int j = start; j >= MINSCREENY + 1; j--){
+		fillRectangle(pipes[i].oldx, j, PIPEWIDTH, 1, 0);
+		putImage(pipes[i].x, j, PIPEWIDTH, 1, pipeEnd, 0, 1);
+	}
+}
+
+void drawPipe(){
+	for (int i = 0; i < PIPEAMT; i++){
+		if (pipes[i].active){
+			drawPipeBottom(i);
+			drawPipeTop(i);
+		}
+	}
+}
+
+/// for removing the pipe once the pipe is at the end of the screen
+void endOfPipeCheck(){
+	for (int i = 0; i < PIPEAMT; i++){
+		if (pipes[i].active){
+			if (pipes[i].x < 1){
+				pipes[i].x = MAXSCREENX - PIPEWIDTH;
+				fillRectangle(MINSCREENX, MINSCREENY, PIPEWIDTH, MAXSCREENY, 0);
+				pipes[i].active = 0;
+			}
+		}
+	}
+}
+
+void initPipe(){
+
+	for (int i = 0; i < PIPEAMT; i++){
+		pipes[i].speed = 1;
+		pipes[i].start = 80;
+		pipes[i].x = MAXSCREENX - PIPEWIDTH;
+		pipes[i].y = MAXSCREENY - pipes[0].start;
+		pipes[i].oldx = pipes[0].x;
+		pipes[i].oldy = pipes[0].y;
+		pipes[i].active = 0;
+		pipes[i].gap = 40 / 2;
+	}
+
+	pipes[0].active = 1;
+}
+
+void initBird(){
+
+	bird[0].x = 35;
+	bird[0].y = 50;
+
+	bird[0].oldx = bird[0].x;
+	bird[0].oldy = bird[0].y;
+	
+	bird[0].jumpStrength = 3;
+	bird[0].gravity = -0.5;
+	bird[0].birdVelocity = 0.0;
+}
+
+void activatePipes(){
+	int start = 60;
+	int end = 100;
+	for (int i = 0; i < PIPEAMT; i++) {
+		if (pipes[i].active && pipes[(i + 1) % PIPEAMT].active == 0 && pipes[i].x <= (MAXSCREENX - spawnGap - PIPEWIDTH)) {
+			pipes[(i + 1) % PIPEAMT].active = 1;
+			pipes[(i + 1) % PIPEAMT].y = randomNum(60, 100);
+		}
+	}
+}
+
+// A: ax1 (left), ax2 (right), ay1 (top), ay2 (bottom)
+// B: bx1, bx2, by1, by2
+int rects_overlap(int ax1, int ax2, int ay1, int ay2,
+                  int bx1, int bx2, int by1, int by2)
+{
+    // If one rectangle is to the left of the other
+    if (ax2 <= bx1) return 0;
+    if (bx2 <= ax1) return 0;
+
+    // If one rectangle is above the other
+    if (ay2 <= by1) return 0;
+    if (by2 <= ay1) return 0;
+
+    return 1; // overlap
+}
+
+int checkCollision(int *counter){
+
+	int num = *counter % PIPEAMT;
+	printNumber(num, 20, 50, BLUE, 0);
+
+	int birdX1 = bird[0].x;
+	int birdY1 = bird[0].y;
+
+	int birdX2 = bird[0].x + BIRDWIDTH;
+	int birdY2 = bird[0].y + BIRDHEIGHT;
+
+	int pipeX1 = pipes[num].x;
+	int pipeY1 = pipes[num].y - pipes[num].gap + PIPEHEIGHT;
+
+	int pipeX2 = pipes[num].x + PIPEWIDTH;
+	int pipeY2 = pipes[num].y + pipes[num].gap;
+
+	if (birdX1 > pipeX2){
+		*counter += 1;
+	}
+
+
+
+	if (rects_overlap(birdX1, birdX2, birdY1, birdY2, pipeX1, pipeX2, MINSCREENX, pipeY1)) return 1;
+
+	if (rects_overlap(birdX1, birdX2, birdY1, birdY2, pipeX1, pipeX2, pipeY2, MAXSCREENY)) return 1;
+
+	return 0;
+
+}
+
+void gameLoop(){
+
+	initPipe();
+	initBird();
+	int rand = 0;
+	int thing = 0;
+	// int counter = 30;
+
+	char str[20];
+	int gameCrashed = 0;
+	int toggle = 0;
+	int counter = 0;
+
+	int reset = 0;
+	
+	while(1)
+	{
+		// if (counter >= 30){
+		// 	int start = 60;
+		// 	int end = 100;
+		// 	thing = prbs();
+		// 	rand = (randomNum(start, end));
+
+		// 	counter = 0;
+		// }
+		// counter +=1;
+		while(gameCrashed == 1){
+			if(leftPressed()){
+				fillRectangle(0, 0, 128, 160, 0);
+				delay(50);
+				initPipe();
+				initBird();
+				rand = 0;
+				thing = 0;
+				// int counter = 30;
+
+				gameCrashed = 0;
+				toggle = 0;
+				counter = 0;
+				break;
+			}
+		}
+
+		if(rightPressed()){
+			bird[0].birdVelocity = bird[0].jumpStrength;
+		}
+
+		if(gameCrashed == 0){
+			bird[0].birdVelocity = bird[0].birdVelocity + bird[0].gravity;
+
+			bird[0].y = bird[0].y - bird[0].birdVelocity;
+
+			
+			sprintf(str, "%d : %d\n\r", rand, thing);
+
+			// printNumber(counter, 74, 5, BLUE, 0);
+
+			// eputs(str);
+
+			drawPipe();
+			endOfPipeCheck();
+			activatePipes();
+
+			if (checkCollision(&counter)){
+				gameCrashed = 1;
+				continue;
+			}
+
+			
+
+			if ((bird[0].y <= MAXSCREENY-BIRDHEIGHT-1) && (bird[0].y >= 1)){
+				fillRectangle(bird[0].oldx,bird[0].oldy,BIRDWIDTH,BIRDHEIGHT,0); // x, y, width, height, colour
+				bird[0].oldx = bird[0].x;
+				bird[0].oldy = bird[0].y;	
+
+			
+
+			if (toggle)
+				putImage(bird[0].x,bird[0].y,BIRDWIDTH,BIRDHEIGHT,bird1,0,0);
+			else
+				putImage(bird[0].x,bird[0].y,BIRDWIDTH,BIRDHEIGHT,bird1,0,0);
+			
+			
+			toggle = toggle ^ 1;
+			
+			}
+			else{
+				gameCrashed = 1;
+			}
+		}
+		else if (bird[0].y >= MAXSCREENY - BIRDHEIGHT){
+			delay(50);
+			fillRectangle(bird[0].oldx,bird[0].oldy,BIRDWIDTH,BIRDHEIGHT,0); // x, y, width, height, colour
+			putImage(bird[0].x,MAXSCREENY - BIRDHEIGHT,BIRDWIDTH,BIRDHEIGHT,bird1,0,0);
+		}
+		else if (bird[0].y <= MINSCREENY){
+			delay(50);
+			fillRectangle(bird[0].oldx,bird[0].oldy,BIRDWIDTH,BIRDHEIGHT,0); // x, y, width, height, colour
+			putImage(bird[0].x,0,BIRDWIDTH,BIRDHEIGHT,bird1,0,0);
+		}
+
+		delay(50);
+	}
+}
+
+int anyButtonPressed(){
+	if (downPressed() || upPressed() || leftPressed() || rightPressed()){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+
+int downPressed(){
+	if ( (GPIOA->IDR & (1 << 11)) == 0){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+
+int upPressed(){
+	if ( (GPIOA->IDR & (1 << 8)) == 0){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+
+int rightPressed(){
+	if ((GPIOB->IDR & (1 << 4))==0){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+
+int leftPressed(){
+	if ((GPIOB->IDR & (1 << 5))==0){
+		return 1;
+	}
+	else{
+		return 0;
+	}
+}
+
+void initSysTick(void)
+{
+	SysTick->LOAD = 48000;
+	SysTick->CTRL = 7;
+	SysTick->VAL = 10;
+	__asm(" cpsie i "); // enable interrupts
+}
+void SysTick_Handler(void)
+{
+	milliseconds++;
+}
+void initClock(void)
+{
+// This is potentially a dangerous function as it could
+// result in a system with an invalid clock signal - result: a stuck system
+        // Set the PLL up
+        // First ensure PLL is disabled
+        RCC->CR &= ~(1u<<24);
+        while( (RCC->CR & (1 <<25))); // wait for PLL ready to be cleared
+        
+// Warning here: if system clock is greater than 24MHz then wait-state(s) need to be
+// inserted into Flash memory interface
+				
+        FLASH->ACR |= (1 << 0);
+        FLASH->ACR &=~((1u << 2) | (1u<<1));
+        // Turn on FLASH prefetch buffer
+        FLASH->ACR |= (1 << 4);
+        // set PLL multiplier to 12 (yielding 48MHz)
+        RCC->CFGR &= ~((1u<<21) | (1u<<20) | (1u<<19) | (1u<<18));
+        RCC->CFGR |= ((1<<21) | (1<<19) ); 
+
+        // Need to limit ADC clock to below 14MHz so will change ADC prescaler to 4
+        RCC->CFGR |= (1<<14);
+
+        // and turn the PLL back on again
+        RCC->CR |= (1<<24);        
+        // set PLL as system clock source 
+        RCC->CFGR |= (1<<1);
+}
+void delay(volatile uint32_t dly)
+{
+	uint32_t end_time = dly + milliseconds;
+	while(milliseconds != end_time)
+		__asm(" wfi "); // sleep
+}
+
+void enablePullUp(GPIO_TypeDef *Port, uint32_t BitNumber)
+{
+	Port->PUPDR = Port->PUPDR &~(3u << BitNumber*2); // clear pull-up resistor bits
+	Port->PUPDR = Port->PUPDR | (1u << BitNumber*2); // set pull-up bit
+}
+void pinMode(GPIO_TypeDef *Port, uint32_t BitNumber, uint32_t Mode)
+{
+	/*
+	*/
+	uint32_t mode_value = Port->MODER;
+	Mode = Mode << (2 * BitNumber);
+	mode_value = mode_value & ~(3u << (BitNumber * 2));
+	mode_value = mode_value | Mode;
+	Port->MODER = mode_value;
+}
+int isInside(uint16_t x1, uint16_t y1, uint16_t w, uint16_t h, uint16_t px, uint16_t py)
+{
+	// checks to see if point px,py is within the rectange defined by x,y,w,h
+	uint16_t x2,y2;
+	x2 = x1+w;
+	y2 = y1+h;
+	int rvalue = 0;
+	if ( (px >= x1) && (px <= x2))
+	{
+		// ok, x constraint met
+		if ( (py >= y1) && (py <= y2))
+			rvalue = 1;
+	}
+	return rvalue;
+}
+
+void setupIO()
+{
+	RCC->AHBENR |= (1 << 18) + (1 << 17); // enable Ports A and B
+	display_begin();
+	pinMode(GPIOB,4,0);
+	pinMode(GPIOB,5,0);
+	pinMode(GPIOA,8,0);
+	pinMode(GPIOA,11,0);
+	enablePullUp(GPIOB,4);
+	enablePullUp(GPIOB,5);
+	enablePullUp(GPIOA,11);
+	enablePullUp(GPIOA,8);
+}
+
+
+void exampleRendering(){
+
+	const uint16_t rgb[]=
+	{
+		7936,7942,59655,49401,7936,7942,59655,49401,49401,59655,7942,7936,49401,59655,7942,7936,7942,7936,49401,59655,7942,7936,49401,59655,59655,49401,7936,7942,59655,49401,7936,7942,
+	};
+
+	int minx = 0;
+	int miny = 0;
+	int maxx = 127;
+	int maxy = 159;
+	int widthRGB = 8;
+	int heightRGB = 4;
+
+	putImage(minx,miny,widthRGB,heightRGB,rgb,0,0); // top left
+	putImage(maxx-widthRGB,miny,widthRGB,heightRGB,rgb,0,0); // top right
+	putImage(minx,maxy-heightRGB,widthRGB,heightRGB,rgb,0,0); // bottom left
+	putImage(maxx-widthRGB,maxy-heightRGB,widthRGB,heightRGB,rgb,0,0); // bottom right
+}

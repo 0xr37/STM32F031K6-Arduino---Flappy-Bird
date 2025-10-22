@@ -47,5 +47,5 @@ def idk(hex):
 
 if __name__ == "__main__":
 	#main()
-    idk('0d00ff')
+    idk('0A0A0A')
 	

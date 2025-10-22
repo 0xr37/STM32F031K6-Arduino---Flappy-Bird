@@ -2,6 +2,7 @@
     "files.associations": {
         "stm32f031x6.h": "c",
         "stdint.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "serial.h": "c"
     }
 }

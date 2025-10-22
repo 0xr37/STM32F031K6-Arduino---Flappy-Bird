@@ -11,6 +11,8 @@ Do difficulties:
 Different speeds
 Different gaps
 Bigger random on the y position
+
+
 */
 
 #include <stm32f031x6.h>
@@ -18,21 +20,50 @@ Bigger random on the y position
 #include <stdio.h>
 #include "prbs.h"
 #include "serial.h"
-#include <stdint.h>
-#include <stddef.h>
 #define BLUE 33020
 #define MINSCREENX 0
 #define MINSCREENY 0
 #define MAXSCREENX 127
 #define MAXSCREENY 159
+#define PIPEAMT 3
 #define PIPEWIDTH 14
 #define PIPEHEIGHT 4
-#define PIPECHUNKHEIGHT 20
 #define BIRDWIDTH 17
 #define BIRDHEIGHT 12
+#define spawnGap 50
 #define bHeight 74
 #define bWidth 32
 #define bStart 65
+
+int isInside(uint16_t x1, uint16_t y1, uint16_t w, uint16_t h, uint16_t px, uint16_t py);
+void initClock(void);
+void initSysTick(void);
+void SysTick_Handler(void);
+void delay(volatile uint32_t dly);
+void setupIO();
+void enablePullUp(GPIO_TypeDef *Port, uint32_t BitNumber);
+void pinMode(GPIO_TypeDef *Port, uint32_t BitNumber, uint32_t Mode);
+volatile uint32_t milliseconds;
+
+
+int upPressed();
+int downPressed();
+int leftPressed();
+int rightPressed();
+int anyButtonPressed();
+
+void gameLoop();
+void initPipe();
+void initBackground();
+
+void drawPipe();
+void drawPipeTop();
+void drawPipeBottom();
+void endOfPipeCheck();
+void initPipe();
+
+void fillBackground(uint16_t x,uint16_t y,uint16_t width, uint16_t height, uint16_t colour);
+void putImageV2(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t *Image, int hOrientation, int vOrientation);
 
 
 struct pipe{
@@ -60,61 +91,7 @@ struct bird{
 	float birdVelocity;
 };
 
-struct difficulty{
-	int pipesAmt;
-	uint8_t start;
-	uint8_t end;
-	float spawnGap;
-};
-
-struct ColourTable { 
-	uint16_t key; 
-	uint16_t val; 
-};
-
-
-int isInside(uint16_t x1, uint16_t y1, uint16_t w, uint16_t h, uint16_t px, uint16_t py);
-void initClock(void);
-void initSysTick(void);
-void SysTick_Handler(void);
-void delay(volatile uint32_t dly);
-void setupIO();
-void enablePullUp(GPIO_TypeDef *Port, uint32_t BitNumber);
-void pinMode(GPIO_TypeDef *Port, uint32_t BitNumber, uint32_t Mode);
-volatile uint32_t milliseconds;
-
-
-uint8_t upPressed();
-uint8_t downPressed();
-uint8_t leftPressed();
-uint8_t rightPressed();
-uint8_t anyButtonPressed();
-
-void gameLoop();
-
-
-void drawPipeTop(struct pipe *pipes, uint8_t i);
-void drawPipeBottom(struct pipe *pipes, uint8_t i);
-void drawPipe(struct pipe *pipes);
-void endOfPipeCheck(struct pipe *pipes);
-void initPipe(struct pipe *pipes);
-void initBird(void);
-void initBackground();
-void initDifficulty();
-void activatePipes(struct pipe *pipes);
-uint8_t checkCollision(struct pipe *pipes, int *counter);
-
-void fillBackground(uint16_t x,uint16_t y,uint16_t width, uint16_t height);
-void putImageV2(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t *Image, int vOrientation);
-void addBoundingBox(uint8_t x, uint16_t y, int colour, uint8_t thickness);
-
-unsigned int getBackgroundPixel(uint16_t screenX, uint16_t screenY);
-uint16_t getNightColour(uint16_t colour);
-
-uint8_t dayNight = 0;
-
-
-struct difficulty currDifficulty[1];
+struct pipe pipes[PIPEAMT];
 struct bird bird[1];
 
 
@@ -128,11 +105,6 @@ const uint16_t pipeStart[]=
 	2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,56463,56463,7047,22911,30574,21854,12877,4165,3380,27692,18980,35356,2625,2625,15239,15495,14983,47479,46702,54366,45645,44869,52532,19500,10788,27164,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,
 };
 
-const uint16_t pipeChunk[]=
-{
-	5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,5008,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5008,
-};
-
 const uint16_t pipeEnd[]=
 {
 	5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,
@@ -143,212 +115,98 @@ const uint16_t background[]=
 	2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,64983,64983,64983,64983,64471,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,64983,64983,64983,64983,64983,64983,64983,64471,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,64983,64983,64983,64983,64983,64983,64983,64983,64471,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64471,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,2510,64983,64983,64471,2510,2510,2510,2510,2510,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64471,2510,2510,2510,2510,2510,2510,2510,2510,2510,64983,64983,64983,64983,64983,64471,2510,2510,2510,2510,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64471,2510,2510,2510,2510,2510,2510,2510,2510,64983,64983,64983,64983,64983,64983,64471,2510,2510,2510,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64471,2510,2510,2510,2510,2510,2510,2510,64983,64983,64983,64983,64983,64983,64983,64471,2510,2510,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,2510,2510,2510,2510,2510,2510,64983,64983,64983,64983,64983,64983,64983,64983,64983,2510,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64471,2510,2510,2510,2510,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,47295,47295,47295,47295,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,47295,47295,47295,47295,47295,64983,64983,64983,64983,64983,64983,64983,64983,64983,64983,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,47295,47295,47295,47295,47295,47295,64983,64983,64983,64983,64983,64983,64983,64983,47295,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,47295,47295,47295,47295,47295,47295,47295,64983,64983,64983,64983,64983,64983,64983,47295,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,47295,47295,47295,47295,47295,47295,47295,47295,64983,64983,64983,64983,64983,47295,47295,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,47295,47295,47295,47295,47295,47295,47295,47295,47295,64983,64983,64983,64983,47295,47295,18301,18301,12158,12158,18301,12158,12158,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,64983,64983,47295,47295,47295,18301,18301,12158,12158,18301,12158,12158,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,64983,64983,47295,47295,47295,18301,18301,12158,12158,18301,12158,12158,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,18301,18301,12158,12158,18301,12158,12158,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,18301,18301,12158,12158,18301,12158,12158,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,18301,18301,12158,12158,18301,12158,12158,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,47295,18301,18301,12158,12158,18301,12158,12158,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,47295,47295,47295,47295,47295,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,12158,12158,18301,12158,12158,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,47295,47295,47295,47295,47295,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,12158,12158,18301,12158,12158,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,47295,47295,47295,47295,47295,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,47295,47295,47295,47295,47295,18301,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,47295,47295,47295,47295,47295,18301,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,47295,47295,47295,47295,47295,18301,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,18301,12158,12158,18301,12158,12158,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,47295,47295,47295,47295,47295,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,12158,12158,18301,12158,12158,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,47295,47295,47295,47295,47295,18301,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,47295,47295,47295,47295,47295,18301,18301,18301,12158,12158,18301,18301,12158,12158,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,47295,47295,47295,47295,47295,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,16733,16733,16733,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,18301,16733,16733,16733,16733,18301,18301,18301,18301,18301,16733,16733,16733,16733,16733,16733,16733,18301,18301,18301,18301,18301,18301,18301,16733,16733,18301,18301,18301,18301,18301,18301,16733,16733,16733,16733,16733,16733,18301,18301,18301,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,18301,18301,16733,16733,16733,16733,16733,16733,18301,18301,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,16733,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,43599,26182,26182,26182,26182,43599,43599,43599,26182,43599,43599,43599,26182,26182,26182,26182,26182,43599,43599,26182,26182,43599,26182,43599,43599,26182,26182,43599,43599,26182,43599,43599,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,19730,19730,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,26182,19730,19730,19730,19730,19730,19730,26182,26182,19730,19730,19730,19730,26182,26182,19730,19730,19730,26182,26182,26182,19730,19730,19730,19730,26182,19730,19730,26182,26182,19730,19730,26182,19730,19730,12562,12562,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,19730,12562,12562,12562,12562,12562,12562,19730,19730,12562,12562,12562,12562,19730,19730,12562,12562,12562,19730,19730,19730,12562,12562,12562,12562,19730,12562,12562,19730,19730,12562,12562,19730,
 };
 
+
+
+
 int main()
 {
+
 	initClock();
 	initSysTick();
 	setupIO();
 	initSerial();
 
-	dayNight = 0;
 	initBackground();
+	// putImage(11,151,birdWidth,birdHeight,bird1,0,0); // x, y, width, height, image, hOrientation, vOrientation
 
 	while (1){
 		if(anyButtonPressed()){
 			break;
 		}
 	}
-
-	initDifficulty();
-
 	delay(500);
 	gameLoop();
 
 	return 0;
 }
 
-void gameLoop(){
-	struct pipe pipes[currDifficulty[0].pipesAmt];
-	initPipe(pipes);
-	initBird();
-
-	int gameCrashed = 0;
-	int toggle = 0;
-	int counter = 0;
-
-	
-	while(1)
-	{
-		while(gameCrashed == 1){
-			if(leftPressed()){
-				initBackground();
-				delay(50);
-				initPipe(pipes);
-				initBird();
-
-				gameCrashed = 0;
-				toggle = 0;
-				counter = 0;
-				break;
-			}
-		}
-
-		if(rightPressed()){
-			bird[0].birdVelocity = bird[0].jumpStrength;
-		}
-
-		if(gameCrashed == 0){
-			bird[0].birdVelocity = bird[0].birdVelocity + bird[0].gravity;
-
-			bird[0].y = bird[0].y - bird[0].birdVelocity;
-
-
-			drawPipe(pipes);
-			endOfPipeCheck(pipes);
-			activatePipes(pipes);
-
-			if (checkCollision(pipes, &counter)){
-				gameCrashed = 1;
-				continue;
-			}
-
-			printNumber(counter, 10, 10, 65535, 0);
-			addBoundingBox(10, 10, 0, 2);
-
-			if ((bird[0].y <= MAXSCREENY-BIRDHEIGHT-1) && (bird[0].y >= 1)){
-				fillBackground(bird[0].oldx,bird[0].oldy,BIRDWIDTH,BIRDHEIGHT); // x, y, width, height
-				bird[0].oldx = bird[0].x;
-				bird[0].oldy = bird[0].y;	
-
-			
-
-			if (toggle)
-				putImageV2(bird[0].x,bird[0].y,BIRDWIDTH,BIRDHEIGHT,bird1,0);
-			else
-				putImageV2(bird[0].x,bird[0].y,BIRDWIDTH,BIRDHEIGHT,bird1,0);
-			
-			
-			toggle = toggle ^ 1;
-			
-			}
-			else{
-				gameCrashed = 1;
-			}
-		}
-		else if (bird[0].y >= MAXSCREENY - BIRDHEIGHT){
-			delay(50);
-			fillBackground(bird[0].oldx,bird[0].oldy,BIRDWIDTH,BIRDHEIGHT); // x, y, width, height, colour
-			putImageV2(bird[0].x,MAXSCREENY - BIRDHEIGHT,BIRDWIDTH,BIRDHEIGHT,bird1,0);
-		}
-		else if (bird[0].y <= MINSCREENY){
-			delay(50);
-			fillBackground(bird[0].oldx,bird[0].oldy,BIRDWIDTH,BIRDHEIGHT); // x, y, width, height, colour
-			putImageV2(bird[0].x,0,BIRDWIDTH,BIRDHEIGHT,bird1, 0);
-		}
-
-		delay(50);
-	}
-}
-
-void initDifficulty(){
-	currDifficulty[0].pipesAmt = 3;
-	currDifficulty[0].start = 60;
-	currDifficulty[0].end = 100;
-	currDifficulty[0].spawnGap = 42;
-}
-
 void initBackground(){
-	putImageV2(0,bStart,bWidth,bHeight,background,0);
-	putImageV2(32,bStart,bWidth,bHeight,background,0);
-	putImageV2(64,bStart,bWidth,bHeight,background,0);
-	putImageV2(96,bStart,bWidth,bHeight,background,0);
-	if (!dayNight){
-		fillRectangle(0, 139, 128, 21, 12562);
-		fillRectangle(0, 0, 128, 65, 2510);
-	}
-	else{
-		fillRectangle(0, 139, 128, 21, 43273);
-		fillRectangle(0, 0, 128, 65, 33336);
-	}
+	putImage(0,bStart,bWidth,bHeight,background,0,0);
+	putImage(32,bStart,bWidth,bHeight,background,0,0);
+	putImage(64,bStart,bWidth,bHeight,background,0,0);
+	putImage(96,bStart,bWidth,bHeight,background,0,0);
+	fillRectangle(0, 0, 128, 65, 2510);
+	fillRectangle(0, 139, 128, 21, 12562);
 }
 
-void drawPipeBottom(struct pipe *pipes, uint8_t i){
-	fillBackground(pipes[i].oldx, pipes[i].oldy + pipes[i].gap, PIPEWIDTH, PIPEHEIGHT);
-	// fillBackground(pipes[i].oldx + PIPEWIDTH - 2, pipes[i].oldy + pipes[i].gap, PIPEWIDTH, PIPEHEIGHT, 0);
-	// ^^ I thought this would be more efficients, but as it turns out its a bit slower
-	// while playing the game, whenever the 3rd pipe starts moving, there's a bit of a trail
-	// left behind which eventually gets filled in, but its evident that somethings just taking too long
+void drawPipeBottom(int i){
+	fillBackground(pipes[i].oldx, pipes[i].oldy + pipes[i].gap, PIPEWIDTH, PIPEHEIGHT, 0);
 	pipes[i].oldx = pipes[i].x;
 	pipes[i].oldy = pipes[i].y;
 	pipes[i].x -= pipes[i].speed;
-	putImageV2(pipes[i].x, pipes[i].y + pipes[i].gap, PIPEWIDTH, PIPEHEIGHT, pipeStart, 0);
+	putImageV2(pipes[i].x, pipes[i].y + pipes[i].gap, PIPEWIDTH, PIPEHEIGHT, pipeStart, 0, 0);
 	
 	int start = pipes[i].y + PIPEHEIGHT + pipes[i].gap;
 
-	for (start = start; start > (MAXSCREENY - PIPECHUNKHEIGHT); start += PIPECHUNKHEIGHT ){
-		fillBackground(pipes[i].oldx, start, PIPEWIDTH, 1);
-		// fillBackground(pipes[i].oldx + PIPEWIDTH - 1, start, PIPEWIDTH, 1, 0);
-		putImageV2(pipes[i].x, start, PIPEWIDTH, PIPECHUNKHEIGHT, pipeChunk, 0);
-	}
-
 	for(int j = start; j <= MAXSCREENY - 1; j++){
-		fillBackground(pipes[i].oldx, j, PIPEWIDTH, 1);
-		// fillBackground(pipes[i].oldx + PIPEWIDTH - 1, j, PIPEWIDTH, 1, 0);
-		putImageV2(pipes[i].x, j, PIPEWIDTH, 1, pipeEnd, 0);
+		fillBackground(pipes[i].oldx, j, PIPEWIDTH, 1, 0);
+		putImageV2(pipes[i].x, j, PIPEWIDTH, 1, pipeEnd, 0, 0);
 	}
 }
 
-void drawPipeTop(struct pipe *pipes, uint8_t i){
+void drawPipeTop(int i){
 
-	fillBackground(pipes[i].oldx, pipes[i].oldy - pipes[i].gap , PIPEWIDTH, PIPEHEIGHT);
-	// fillBackground(pipes[i].oldx + PIPEWIDTH - 2, pipes[i].oldy - pipes[i].gap , PIPEWIDTH, PIPEHEIGHT, 0);
+	fillBackground(pipes[i].oldx, pipes[i].oldy - pipes[i].gap , PIPEWIDTH, PIPEHEIGHT, 0);
 	pipes[i].oldx = pipes[i].x;
 	pipes[i].oldy = pipes[i].y;
 	pipes[i].x -= pipes[i].speed;
 
 	
-	putImageV2(pipes[i].x, pipes[i].y - pipes[i].gap, PIPEWIDTH, PIPEHEIGHT, pipeStart, 0);
+	putImageV2(pipes[i].x, pipes[i].y - pipes[i].gap, PIPEWIDTH, PIPEHEIGHT, pipeStart, 0, 0);
 	
 	int start = pipes[i].y - 1 - pipes[i].gap;
 
-	for (start = start; start < (MINSCREENY + PIPECHUNKHEIGHT); start -= PIPECHUNKHEIGHT ){
-		fillBackground(pipes[i].oldx, start, PIPEWIDTH, 1);
-		// fillBackground(pipes[i].oldx + PIPEWIDTH - 1, start, PIPEWIDTH, 1, 0);
-		putImageV2(pipes[i].x, start, PIPEWIDTH, PIPECHUNKHEIGHT, pipeChunk, 0);
-	}
-
 	for(int j = start; j >= MINSCREENY + 1; j--){
-		fillBackground(pipes[i].oldx, j, PIPEWIDTH, 1);
-		//fillBackground(pipes[i].oldx + PIPEWIDTH - 1, j, PIPEWIDTH, 1, 0);
-		putImageV2(pipes[i].x, j, PIPEWIDTH, 1, pipeEnd, 1);
+		fillBackground(pipes[i].oldx, j, PIPEWIDTH, 1, 0);
+		putImageV2(pipes[i].x, j, PIPEWIDTH, 1, pipeEnd, 0, 1);
 	}
 }
 
-void drawPipe(struct pipe *pipes){
-	for (uint8_t i = 0; i < currDifficulty[0].pipesAmt; i++){
+void drawPipe(){
+	for (int i = 0; i < PIPEAMT; i++){
 		if (pipes[i].active){
-			drawPipeBottom(pipes, i);
-			drawPipeTop(pipes, i);
+			drawPipeBottom(i);
+			drawPipeTop(i);
 		}
 	}
 }
 
 /// for removing the pipe once the pipe is at the end of the screen
-void endOfPipeCheck(struct pipe *pipes){
-	for (int i = 0; i < currDifficulty[0].pipesAmt; i++){
+void endOfPipeCheck(){
+	for (int i = 0; i < PIPEAMT; i++){
 		if (pipes[i].active){
 			if (pipes[i].x < 1){
 				pipes[i].x = MAXSCREENX - PIPEWIDTH;
-				fillBackground(MINSCREENX, MINSCREENY, PIPEWIDTH, MAXSCREENY);
+				fillBackground(MINSCREENX, MINSCREENY, PIPEWIDTH, MAXSCREENY, 0);
 				pipes[i].active = 0;
 			}
 		}
 	}
 }
 
-void initPipe(struct pipe *pipes){
+void initPipe(){
 
-	for (int i = 0; i < currDifficulty[0].pipesAmt; i++){
+	for (int i = 0; i < PIPEAMT; i++){
 		pipes[i].speed = 1.5;
 		pipes[i].start = 80;
 		pipes[i].x = MAXSCREENX - PIPEWIDTH;
@@ -375,16 +233,18 @@ void initBird(){
 	bird[0].birdVelocity = 0.0;
 }
 
-void activatePipes(struct pipe *pipes){
-	for (int i = 0; i < currDifficulty[0].pipesAmt; i++) {
-		if (pipes[i].active && pipes[(i + 1) % currDifficulty[0].pipesAmt].active == 0 && pipes[i].x <= (MAXSCREENX - currDifficulty[0].spawnGap - PIPEWIDTH)) {
-			pipes[(i + 1) % currDifficulty[0].pipesAmt].active = 1;
-			pipes[(i + 1) % currDifficulty[0].pipesAmt].y = randomNum(currDifficulty[0].start, currDifficulty[0].end);
+void activatePipes(){
+	int start = 60;
+	int end = 100;
+	for (int i = 0; i < PIPEAMT; i++) {
+		if (pipes[i].active && pipes[(i + 1) % PIPEAMT].active == 0 && pipes[i].x <= (MAXSCREENX - spawnGap - PIPEWIDTH)) {
+			pipes[(i + 1) % PIPEAMT].active = 1;
+			pipes[(i + 1) % PIPEAMT].y = randomNum(60, 100);
 		}
 	}
 }
 
-int rectsOverlap(int ax1, int ax2, int ay1, int ay2,
+int rects_overlap(int ax1, int ax2, int ay1, int ay2,
                   int bx1, int bx2, int by1, int by2)
 {
     if (ax2 <= bx1) return 0;
@@ -396,9 +256,10 @@ int rectsOverlap(int ax1, int ax2, int ay1, int ay2,
     return 1;
 }
 
-uint8_t checkCollision(struct pipe *pipes, int *counter){
+int checkCollision(int *counter){
 
-	int num = *counter % currDifficulty[0].pipesAmt;
+	int num = *counter % PIPEAMT;
+	printNumber(num, 20, 50, BLUE, 0);
 
 	int birdX1 = bird[0].x;
 	int birdY1 = bird[0].y;
@@ -418,17 +279,107 @@ uint8_t checkCollision(struct pipe *pipes, int *counter){
 
 
 
-	if (rectsOverlap(birdX1, birdX2, birdY1, birdY2, pipeX1, pipeX2, MINSCREENX, pipeY1)) return 1;
+	if (rects_overlap(birdX1, birdX2, birdY1, birdY2, pipeX1, pipeX2, MINSCREENX, pipeY1)) return 1;
 
-	if (rectsOverlap(birdX1, birdX2, birdY1, birdY2, pipeX1, pipeX2, pipeY2, MAXSCREENY)) return 1;
+	if (rects_overlap(birdX1, birdX2, birdY1, birdY2, pipeX1, pipeX2, pipeY2, MAXSCREENY)) return 1;
 
 	return 0;
 
 }
 
+void gameLoop(){
+
+	initPipe();
+	initBird();
+	int rand = 0;
+	int thing = 0;
+
+	char str[20];
+	int gameCrashed = 0;
+	int toggle = 0;
+	int counter = 0;
+
+	int reset = 0;
+	
+	while(1)
+	{
+		while(gameCrashed == 1){
+			if(leftPressed()){
+				initBackground();
+				delay(50);
+				initPipe();
+				initBird();
+				rand = 0;
+				thing = 0;
+				// int counter = 30;
+
+				gameCrashed = 0;
+				toggle = 0;
+				counter = 0;
+				break;
+			}
+		}
+
+		if(rightPressed()){
+			bird[0].birdVelocity = bird[0].jumpStrength;
+		}
+
+		if(gameCrashed == 0){
+			bird[0].birdVelocity = bird[0].birdVelocity + bird[0].gravity;
+
+			bird[0].y = bird[0].y - bird[0].birdVelocity;
 
 
-void putImageV2(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t *Image, int vOrientation)
+			// printNumber(counter, 74, 5, BLUE, 0);
+
+
+			drawPipe();
+			endOfPipeCheck();
+			activatePipes();
+
+			if (checkCollision(&counter)){
+				gameCrashed = 1;
+				continue;
+			}
+
+			
+
+			if ((bird[0].y <= MAXSCREENY-BIRDHEIGHT-1) && (bird[0].y >= 1)){
+				fillBackground(bird[0].oldx,bird[0].oldy,BIRDWIDTH,BIRDHEIGHT,0); // x, y, width, height, colour
+				bird[0].oldx = bird[0].x;
+				bird[0].oldy = bird[0].y;	
+
+			
+
+			if (toggle)
+				putImageV2(bird[0].x,bird[0].y,BIRDWIDTH,BIRDHEIGHT,bird1,0,0);
+			else
+				putImageV2(bird[0].x,bird[0].y,BIRDWIDTH,BIRDHEIGHT,bird1,0,0);
+			
+			
+			toggle = toggle ^ 1;
+			
+			}
+			else{
+				gameCrashed = 1;
+			}
+		}
+		else if (bird[0].y >= MAXSCREENY - BIRDHEIGHT){
+			delay(50);
+			fillBackground(bird[0].oldx,bird[0].oldy,BIRDWIDTH,BIRDHEIGHT,0); // x, y, width, height, colour
+			putImageV2(bird[0].x,MAXSCREENY - BIRDHEIGHT,BIRDWIDTH,BIRDHEIGHT,bird1,0,0);
+		}
+		else if (bird[0].y <= MINSCREENY){
+			delay(50);
+			fillBackground(bird[0].oldx,bird[0].oldy,BIRDWIDTH,BIRDHEIGHT,0); // x, y, width, height, colour
+			putImageV2(bird[0].x,0,BIRDWIDTH,BIRDHEIGHT,bird1,0,0);
+		}
+
+		delay(50);
+	}
+}
+
+void putImageV2(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t *Image, int hOrientation, int vOrientation)
 {
     uint16_t Colour;
     uint32_t offset = 0;
@@ -446,13 +397,20 @@ void putImageV2(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const u
             for (x = 0; x < width; x++)
             {
                 Colour = Image[offset + x];
+                uint16_t screenX = baseX + x;
+                uint16_t screenY = baseY + y;
 
                 if (Colour == 5536) {
-                    Colour = getBackgroundPixel(baseX + x, baseY + y);
+                    if (screenY >= bStart && screenY < (bStart + bHeight)) {
+                        int index = screenX % bWidth;
+                        int imIndex = (screenY - bStart) * bWidth + index;
+                        Colour = background[imIndex];
+                    } else if (screenY < bStart) {
+                        Colour = 2510;
+                    } else {
+                        Colour = 12562;
+                    }
                 }
-				else if(dayNight){
-					Colour = getNightColour(Colour);
-				}
 
                 transferSPI16V2(Colour);
             }
@@ -460,15 +418,25 @@ void putImageV2(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const u
     }
     else
     {
-        for (y = 0; y < height; y++)
+        for (int k = 0; k < height; k++)
         {
-            offset = (height - (y + 1)) * width;
-            for (x = 0; x < width; x++)
+            offset = (height - (k + 1)) * width;
+            for (int j = 0; j < width; j++)
             {
-                Colour = Image[offset + x];
+                Colour = Image[offset + j];
+                uint16_t screenX = baseX + j;
+                uint16_t screenY = baseY + k;
 
                 if (Colour == 5536) {
-                    Colour = getBackgroundPixel(baseX + x, baseY + y);
+                    if (screenY >= bStart && screenY < (bStart + bHeight)) {
+                        int index = screenX % bWidth;
+                        int imIndex = (screenY - bStart) * bWidth + index;
+                        Colour = background[imIndex];
+                    } else if (screenY < bStart) {
+                        Colour = 2510;
+                    } else {
+                        Colour = 12562;
+                    }
                 }
 
                 transferSPI16V2(Colour);
@@ -477,9 +445,8 @@ void putImageV2(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const u
     }
 }
 
-void fillBackground(uint16_t x,uint16_t y,uint16_t width, uint16_t height)
+void fillBackground(uint16_t x,uint16_t y,uint16_t width, uint16_t height, uint16_t colour)
 {
-	int colour;
 	uint16_t baseX = x;
 	uint16_t baseY = y;
 	openApertureV2(x, y, x + width - 1, y + height - 1);
@@ -487,92 +454,27 @@ void fillBackground(uint16_t x,uint16_t y,uint16_t width, uint16_t height)
 
 	for (y = 0; y < height; y++){
 		for (x = 0; x < width; x++){
+			uint16_t screenX = baseX + x;
+			uint16_t screenY = baseY + y;
 
-			colour = getBackgroundPixel(baseX + x, baseY + y);
+			if (screenY >= bStart && screenY < (bStart + bHeight)) {
+				int index = screenX % bWidth;
+				int imIndex = (screenY - bStart) * bWidth + index;
+				colour = background[imIndex];
+			} 
+			else if (screenY < bStart) {
+				colour = 2510;
+			} 
+			else {
+				colour = 12562;
+			}
 
 			transferSPI16V2(colour);
 		}
 	}
 }
 
-void addBoundingBox(uint8_t x, uint16_t y, int colour, uint8_t thickness){
-	uint8_t numPixelWidth = 33;
-	uint8_t numPixelHeight = 7;
-
-    uint8_t x1 = x - thickness;
-	uint16_t y1 = y - thickness;
-	
-	uint8_t x2 = x + numPixelWidth;
-	uint16_t y2 = y + numPixelHeight;
-
-
-	fillRectangle(x1, y1, numPixelWidth + thickness*2, thickness, colour); // top
-	fillRectangle(x1, y, thickness, numPixelHeight + thickness, colour); // left
-	fillRectangle(x2, y, thickness, numPixelHeight + thickness, colour); // right
-	fillRectangle(x, y2, numPixelWidth, thickness, colour); // bottom
-}
-
-unsigned int getBackgroundPixel(uint16_t screenX, uint16_t screenY){
-	int colour = 0;
-
-	if (screenY >= bStart && screenY < (bStart + bHeight)) {
-		int index = screenX % bWidth;
-		int imIndex = (screenY - bStart) * bWidth + index;
-		colour = background[imIndex];
-	} 
-	else if (screenY < bStart) {
-		colour = 2510;
-	} 
-	else if (screenY >= bStart + bHeight){
-		colour = 12562;
-	}
-	else{
-		colour = 0;
-	}
-
-	if (dayNight){
-		colour = getNightColour(colour);
-	}
-
-	return colour;
-}
-
-uint16_t getNightColour(uint16_t colour){
-    static const struct ColourTable colours[] = {
-        {2510, 33336},
-        {12158, 12083},
-        {12562, 43273},
-        {16733, 8729},
-        {18301, 16672},
-        {19730, 42761},
-        {26182, 273},
-        {43599, 33554},
-        {47295, 49720},
-        {64471, 33601},
-        {64983, 33601},
-    };
-
-    int8_t lower = 0;
-	int8_t higher = sizeof(colours)/sizeof(colours[0]);
-
-    while (lower < higher){
-
-        size_t mid = lower + (higher - lower) / 2;
-
-        if (colours[mid].key == colour) {
-			return colours[mid].val;
-		}
-
-        if (colours[mid].key < colour) {
-			lower = mid + 1;
-		}
-
-        else higher = mid;
-    }
-    return colour;
-}
-
-uint8_t anyButtonPressed(){
+int anyButtonPressed(){
 	if (downPressed() || upPressed() || leftPressed() || rightPressed()){
 		return 1;
 	}
@@ -581,7 +483,7 @@ uint8_t anyButtonPressed(){
 	}
 }
 
-uint8_t downPressed(){
+int downPressed(){
 	if ( (GPIOA->IDR & (1 << 11)) == 0){
 		return 1;
 	}
@@ -590,7 +492,7 @@ uint8_t downPressed(){
 	}
 }
 
-uint8_t upPressed(){
+int upPressed(){
 	if ( (GPIOA->IDR & (1 << 8)) == 0){
 		return 1;
 	}
@@ -599,7 +501,7 @@ uint8_t upPressed(){
 	}
 }
 
-uint8_t rightPressed(){
+int rightPressed(){
 	if ((GPIOB->IDR & (1 << 4))==0){
 		return 1;
 	}
@@ -608,7 +510,7 @@ uint8_t rightPressed(){
 	}
 }
 
-uint8_t leftPressed(){
+int leftPressed(){
 	if ((GPIOB->IDR & (1 << 5))==0){
 		return 1;
 	}
@@ -624,12 +526,10 @@ void initSysTick(void)
 	SysTick->VAL = 10;
 	__asm(" cpsie i "); // enable interrupts
 }
-
 void SysTick_Handler(void)
 {
 	milliseconds++;
 }
-
 void initClock(void)
 {
 // This is potentially a dangerous function as it could
@@ -670,7 +570,6 @@ void enablePullUp(GPIO_TypeDef *Port, uint32_t BitNumber)
 	Port->PUPDR = Port->PUPDR &~(3u << BitNumber*2); // clear pull-up resistor bits
 	Port->PUPDR = Port->PUPDR | (1u << BitNumber*2); // set pull-up bit
 }
-
 void pinMode(GPIO_TypeDef *Port, uint32_t BitNumber, uint32_t Mode)
 {
 	/*
@@ -681,19 +580,53 @@ void pinMode(GPIO_TypeDef *Port, uint32_t BitNumber, uint32_t Mode)
 	mode_value = mode_value | Mode;
 	Port->MODER = mode_value;
 }
+int isInside(uint16_t x1, uint16_t y1, uint16_t w, uint16_t h, uint16_t px, uint16_t py)
+{
+	// checks to see if point px,py is within the rectange defined by x,y,w,h
+	uint16_t x2,y2;
+	x2 = x1+w;
+	y2 = y1+h;
+	int rvalue = 0;
+	if ( (px >= x1) && (px <= x2))
+	{
+		// ok, x constraint met
+		if ( (py >= y1) && (py <= y2))
+			rvalue = 1;
+	}
+	return rvalue;
+}
 
 void setupIO()
 {
 	RCC->AHBENR |= (1 << 18) + (1 << 17); // enable Ports A and B
 	display_begin();
-	pinMode(GPIOA,1,0);
 	pinMode(GPIOB,4,0);
 	pinMode(GPIOB,5,0);
 	pinMode(GPIOA,8,0);
 	pinMode(GPIOA,11,0);
-	enablePullUp(GPIOA,1);
 	enablePullUp(GPIOB,4);
 	enablePullUp(GPIOB,5);
 	enablePullUp(GPIOA,11);
 	enablePullUp(GPIOA,8);
+}
+
+
+void exampleRendering(){
+
+	const uint16_t rgb[]=
+	{
+		7936,7942,59655,49401,7936,7942,59655,49401,49401,59655,7942,7936,49401,59655,7942,7936,7942,7936,49401,59655,7942,7936,49401,59655,59655,49401,7936,7942,59655,49401,7936,7942,
+	};
+
+	int minx = 0;
+	int miny = 0;
+	int maxx = 127;
+	int maxy = 159;
+	int widthRGB = 8;
+	int heightRGB = 4;
+
+	putImage(minx,miny,widthRGB,heightRGB,rgb,0,0); // top left
+	putImage(maxx-widthRGB,miny,widthRGB,heightRGB,rgb,0,0); // top right
+	putImage(minx,maxy-heightRGB,widthRGB,heightRGB,rgb,0,0); // bottom left
+	putImage(maxx-widthRGB,maxy-heightRGB,widthRGB,heightRGB,rgb,0,0); // bottom right
 }

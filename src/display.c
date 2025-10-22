@@ -3,6 +3,7 @@
 #include "display.h"
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 160
+#include "main.h"
 
 
 
@@ -23,7 +24,9 @@ static void command(uint8_t cmd);
 static void data(uint8_t data);
 static void ResetLow(void);
 static void ResetHigh(void);
-
+uint16_t getSPI16();
+int findPixel(int x, int y);
+uint16_t readPixel(int x, int y);
 
 void openApertureV2(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2){
     openAperture(x1, y1, x2, y2);
@@ -37,6 +40,7 @@ void DCHighV2()
 uint16_t transferSPI16V2(uint16_t data){
     transferSPI16(data);
 }
+
 
 void display_begin()
 {
@@ -219,6 +223,58 @@ uint16_t transferSPI16(uint16_t data)
     return (uint16_t)ReturnValue;
 }
 
+uint16_t getSPI16()
+{
+    unsigned Timeout = 1000000;
+    uint32_t ReturnValue;
+
+    Timeout = 1000000;
+    while (((SPI1->SR & (1 << 7))!=0)&&(Timeout--));        
+	  ReturnValue = SPI1->DR;
+	
+    return (uint16_t)ReturnValue;
+}
+
+int findPixel(int x, int y){
+    // return raw RGB565 value using the corrected read routine
+    return (int)readPixel(x, y);
+}
+
+// int findPixel(int x, int y){
+// 	int pixel = readPixel(x, y);
+
+// 	return pixel;
+// }
+
+uint16_t readPixel(int x, int y)
+{
+    uint8_t msb = 0, lsb = 0;
+
+    // Ensure CS is asserted for the whole command + data read sequence
+    CSLow();
+
+    // Set aperture (commands/data expect CS low)
+    openAperture(x, y, x, y);
+
+    // Issue memory read command (0x2E) in command phase
+    DCLow();
+    transferSPI8(0x2E);
+
+    // Switch to data phase to clock out returned bytes
+    DCHigh();
+
+    // Many controllers require one dummy read before pixel data (adjust if your controller needs more)
+    transferSPI8(0x00); // dummy
+
+    // Read MSB then LSB of RGB565 pixel
+    msb = transferSPI8(0x00);
+    lsb = transferSPI8(0x00);
+
+    CSHigh();
+
+    return (uint16_t)((msb << 8) | lsb); // RGB565
+}
+
 void command(uint8_t cmd)
 {
 	DCLow();
@@ -251,11 +307,27 @@ void openAperture(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
     command(0x2c); // put display in to data write mode
 	
 }
+void fillRectangle(uint16_t x,uint16_t y,uint16_t width, uint16_t height, uint16_t colour)
+{
+	uint32_t pixelcount = height * width;
+	openAperture(x, y, x + width - 1, y + height - 1);
+	DCHigh();
+	while(pixelcount--) 
+	{
+		transferSPI16(colour);
+	}	
+}
+void putPixel(uint16_t x, uint16_t y, uint16_t colour)
+{
+	openAperture(x, y, x + 1, y + 1);	
+	DCHigh();
+	transferSPI16(colour);
+}
 
 void putImage(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t *Image, int hOrientation, int vOrientation)
 {
     uint16_t Colour;
-	uint32_t offset = 0;
+	  uint32_t offset = 0;
     openAperture(x, y, x + width - 1, y + height - 1);
     DCHigh();
 	  if (hOrientation == 0)
@@ -314,28 +386,6 @@ void putImage(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uin
 			}
 		}
 }
-
-void fillRectangle(uint16_t x,uint16_t y,uint16_t width, uint16_t height, uint16_t colour)
-{
-	uint32_t pixelcount = height * width;
-	openAperture(x, y, x + width - 1, y + height - 1);
-	DCHigh();
-	while(pixelcount--) 
-	{
-		transferSPI16(colour);
-	}	
-}
-
-
-
-void putPixel(uint16_t x, uint16_t y, uint16_t colour)
-{
-	openAperture(x, y, x + 1, y + 1);	
-	DCHigh();
-	transferSPI16(colour);
-}
-
-
 
 void drawLine(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1, uint16_t Colour)
 {
@@ -461,6 +511,9 @@ void fillCircle(uint16_t x0, uint16_t y0, uint16_t radius, uint16_t Colour)
         }
     }
 }
+
+
+
 void printText(const char *Text,uint16_t x, uint16_t y, uint16_t ForeColour, uint16_t BackColour)
 {
 	// This function draws each character individually.  It uses an array called TextBox as a temporary storage
@@ -488,12 +541,18 @@ void printText(const char *Text,uint16_t x, uint16_t y, uint16_t ForeColour, uin
                 else
                 {
                     TextBox[(Row * FONT_WIDTH) + Col] = BackColour;
+                    //TextBox[(Row * FONT_WIDTH) + Col] = getBackgroundPixel(x + Row, y + Col);
                 }
                 Row++;
             }
             Col++;
         }
+        
         putImage(x, y, FONT_WIDTH, FONT_HEIGHT, (uint16_t *)TextBox,0,0);
+        if (Index != len - 1){
+            fillRectangle(x+FONT_WIDTH, y, 2, FONT_HEIGHT, BackColour);
+        }
+
         x = x + FONT_WIDTH + 2;
     }
 }

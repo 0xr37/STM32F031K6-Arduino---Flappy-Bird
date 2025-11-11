@@ -100,7 +100,7 @@ void initBird(void);
 void initBackground();
 void initDifficulty();
 void activatePipes(struct pipe *pipes);
-uint8_t checkCollision(struct pipe *pipes, int *counter);
+uint8_t checkCollision(struct pipe *pipes, uint16_t *counter);
 
 void fillBackground(uint16_t x,uint16_t y,uint16_t width, uint16_t height);
 void putImageV2(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t *Image);
@@ -396,7 +396,7 @@ uint8_t rectsOverlap(uint16_t ax1, uint16_t ax2, uint16_t ay1, uint16_t ay2,
 }
 
 // Function for checking if the bird colides with either pipe
-uint8_t checkCollision(struct pipe *pipes, int *counter){
+uint8_t checkCollision(struct pipe *pipes, uint16_t *counter){
 
 	uint8_t i = *counter % currDifficulty[0].pipesAmt; // next pipe number
 

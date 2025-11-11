@@ -3,6 +3,8 @@
         "stm32f031x6.h": "c",
         "stdint.h": "c",
         "stdio.h": "c",
-        "serial.h": "c"
+        "serial.h": "c",
+        "stddef.h": "c",
+        "display.h": "c"
     }
 }

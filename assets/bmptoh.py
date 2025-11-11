@@ -16,8 +16,8 @@ def hex_to_rgb(hexStr: str):
 
     if len(s) == 3:
         expanded = []
-        for ch in s:
-            expanded.append(ch * 2)
+        for char in s:
+            expanded.append(char * 2)
         s = ''.join(expanded)
 
     if len(s) != 6:
@@ -30,22 +30,22 @@ def rgb_to_hex(rgb):
     return '#%02x%02x%02x' % rgb
 
 def main():
-	user_input = input("Please enter some text: ")
+	user_input = input("Please file name from assets: ")
 	
 	ImageFileName=f'assets\\{user_input}'
 	im=Image.open(ImageFileName)
-	#print(im.format,im.size,im.mode)
+
 	pixels=list(im.getdata())
 	for px in pixels:
 		print(RGBToWord(px[0],px[1],px[2]),end=',')
 	
-def idk(hex):
+def hexToWord(hex):
 	r, g, b = hex_to_rgb(hex)
 	asd = RGBToWord(r, g, b)
 	print(asd)
 
 
 if __name__ == "__main__":
-	#main()
-    idk('0A0A0A')
+	main()
+    #idk('0A0A0A')
 	

@@ -5,42 +5,23 @@
 #define SCREEN_HEIGHT 160
 #include "main.h"
 
-
-
 void clear(void);
 static uint32_t mystrlen(const char *s);
 static void drawLineLowSlope(uint16_t x0, uint16_t y0, uint16_t x1,uint16_t y1, uint16_t Colour);
 static void drawLineHighSlope(uint16_t x0, uint16_t y0, uint16_t x1,uint16_t y1, uint16_t Colour);
 static int iabs(int x);
-static void openAperture(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
+void openAperture(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
 static void CSLow(void);
 static void CSHigh(void);
 static void DCLow(void);
-static void DCHigh(void);
+void DCHigh(void);
 static void initSPI(void);
 static uint8_t transferSPI8(uint8_t data);
-static uint16_t transferSPI16(uint16_t data);
+uint16_t transferSPI16(uint16_t data);
 static void command(uint8_t cmd);
 static void data(uint8_t data);
 static void ResetLow(void);
 static void ResetHigh(void);
-uint16_t getSPI16();
-int findPixel(int x, int y);
-uint16_t readPixel(int x, int y);
-
-void openApertureV2(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2){
-    openAperture(x1, y1, x2, y2);
-}
-
-void DCHighV2()
-{
-	DCHigh();
-}
-
-uint16_t transferSPI16V2(uint16_t data){
-    transferSPI16(data);
-}
-
 
 void display_begin()
 {
@@ -221,58 +202,6 @@ uint16_t transferSPI16(uint16_t data)
 	  ReturnValue = SPI1->DR;
 	
     return (uint16_t)ReturnValue;
-}
-
-uint16_t getSPI16()
-{
-    unsigned Timeout = 1000000;
-    uint32_t ReturnValue;
-
-    Timeout = 1000000;
-    while (((SPI1->SR & (1 << 7))!=0)&&(Timeout--));        
-	  ReturnValue = SPI1->DR;
-	
-    return (uint16_t)ReturnValue;
-}
-
-int findPixel(int x, int y){
-    // return raw RGB565 value using the corrected read routine
-    return (int)readPixel(x, y);
-}
-
-// int findPixel(int x, int y){
-// 	int pixel = readPixel(x, y);
-
-// 	return pixel;
-// }
-
-uint16_t readPixel(int x, int y)
-{
-    uint8_t msb = 0, lsb = 0;
-
-    // Ensure CS is asserted for the whole command + data read sequence
-    CSLow();
-
-    // Set aperture (commands/data expect CS low)
-    openAperture(x, y, x, y);
-
-    // Issue memory read command (0x2E) in command phase
-    DCLow();
-    transferSPI8(0x2E);
-
-    // Switch to data phase to clock out returned bytes
-    DCHigh();
-
-    // Many controllers require one dummy read before pixel data (adjust if your controller needs more)
-    transferSPI8(0x00); // dummy
-
-    // Read MSB then LSB of RGB565 pixel
-    msb = transferSPI8(0x00);
-    lsb = transferSPI8(0x00);
-
-    CSHigh();
-
-    return (uint16_t)((msb << 8) | lsb); // RGB565
 }
 
 void command(uint8_t cmd)

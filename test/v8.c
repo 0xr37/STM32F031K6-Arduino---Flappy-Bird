@@ -9,8 +9,6 @@ Do difficulties:
 Different speeds
 Different gaps
 Bigger random on the y position
-
-Fix game loop, it looks like a mess
 */
 
 #include <stm32f031x6.h>
@@ -70,6 +68,13 @@ struct difficulty{
 	float spawnGap;
 };
 
+struct ColourTable { 
+	uint16_t key; 
+	uint16_t val; 
+};
+
+
+int isInside(uint16_t x1, uint16_t y1, uint16_t w, uint16_t h, uint16_t px, uint16_t py);
 void initClock(void);
 void initSysTick(void);
 void SysTick_Handler(void);
@@ -103,12 +108,11 @@ void activatePipes(struct pipe *pipes);
 uint8_t checkCollision(struct pipe *pipes, int *counter);
 
 void fillBackground(uint16_t x,uint16_t y,uint16_t width, uint16_t height);
-void putImageV2(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t *Image);
-void addBoundingBox(uint8_t x, uint16_t y, uint16_t colour, uint8_t thickness);
+void putImageV2(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t *Image, int vOrientation);
+void addBoundingBox(uint8_t x, uint16_t y, int colour, uint8_t thickness);
 
-uint16_t getBackgroundPixel(uint16_t screenX, uint16_t screenY);
-void putPipe(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t *Image);
-uint8_t rectsOverlap(uint16_t ax1, uint16_t ax2, uint16_t ay1, uint16_t ay2, uint16_t bx1, uint16_t bx2, uint16_t by1, uint16_t by2);
+unsigned int getBackgroundPixel(uint16_t screenX, uint16_t screenY);
+uint16_t getNightColour(uint16_t colour);
 
 uint8_t dayNight = 0;
 
@@ -124,22 +128,17 @@ const uint16_t bird1[]=
 
 const uint16_t pipeStart[]=
 {
-	2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,56463,56463,7047,22911,30574,21854,12877,4165,3380,27692,18980,35356,2625,2625,56463,56463,7047,22911,30574,21854,12877,4165,3380,27692,18980,35356,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,
+	2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,56463,56463,7047,22911,30574,21854,12877,4165,3380,27692,18980,35356,2625,2625,15239,15495,14983,47479,46702,54366,45645,44869,52532,19500,10788,27164,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,2625,
 };
 
-const uint16_t pipeStartNight[]=
+const uint16_t pipeChunk[]=
 {
-	512,512,512,512,512,512,512,512,512,512,512,512,512,512,512,62277,62277,12861,28725,36388,27668,26891,18179,17666,41730,33281,49409,512,512,62277,62277,12861,28725,36388,27668,26891,18179,17666,41730,33281,49409,512,512,512,512,512,512,512,512,512,512,512,512,512,512,512,
+	5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,
 };
 
 const uint16_t pipeEnd[]=
 {
 	5536,2625,13142,55150,14719,39559,39030,46174,45389,60980,43820,10788,2625,5536,
-};
-
-const uint16_t pipeEndNight[]=
-{
-	5536,256,27411,60964,20789,45373,44844,60179,59395,9474,57857,24833,512,5536,
 };
 
 const uint16_t background[]=
@@ -152,13 +151,6 @@ const uint16_t backgroundNight[]=
 	33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33601,33601,33601,33601,33601,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33601,33601,33601,33601,33601,33601,33601,33601,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33601,33601,33601,33601,33601,33601,33601,33601,33601,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33336,33601,33601,33601,33336,33336,33336,33336,33336,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33336,33336,33336,33336,33336,33336,33336,33336,33336,33601,33601,33601,33601,33601,33601,33336,33336,33336,33336,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33336,33336,33336,33336,33336,33336,33336,33336,33601,33601,33601,33601,33601,33601,33601,33336,33336,33336,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33336,33336,33336,33336,33336,33336,33336,33601,33601,33601,33601,33601,33601,33601,33601,33336,33336,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33336,33336,33336,33336,33336,33336,33601,33601,33601,33601,33601,33601,33601,33601,33601,33336,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33336,33336,33336,33336,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,49720,49720,49720,49720,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,49720,49720,49720,49720,49720,33601,33601,33601,33601,33601,33601,33601,33601,33601,33601,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,49720,49720,49720,49720,49720,49720,33601,33601,33601,33601,33601,33601,33601,33601,49720,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,49720,49720,49720,49720,49720,49720,49720,33601,33601,33601,33601,33601,33601,33601,49720,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,49720,49720,49720,49720,49720,49720,49720,49720,33601,33601,33601,33601,33601,49720,49720,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,49720,49720,49720,49720,49720,49720,49720,49720,49720,33601,33601,33601,33601,49720,49720,16672,16672,12083,12083,16672,12083,12083,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,33601,33601,49720,49720,49720,16672,16672,12083,12083,16672,12083,12083,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,33601,33601,49720,49720,49720,16672,16672,12083,12083,16672,12083,12083,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,16672,16672,12083,12083,16672,12083,12083,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,16672,16672,12083,12083,16672,12083,12083,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,16672,16672,12083,12083,16672,12083,12083,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,49720,16672,16672,12083,12083,16672,12083,12083,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,49720,49720,49720,49720,49720,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,12083,12083,16672,12083,12083,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,49720,49720,49720,49720,49720,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,12083,12083,16672,12083,12083,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,49720,49720,49720,49720,49720,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,49720,49720,49720,49720,49720,16672,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,49720,49720,49720,49720,49720,16672,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,49720,49720,49720,49720,49720,16672,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,16672,12083,12083,16672,12083,12083,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,49720,49720,49720,49720,49720,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,12083,12083,16672,12083,12083,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,49720,49720,49720,49720,49720,16672,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,49720,49720,49720,49720,49720,16672,16672,16672,12083,12083,16672,16672,12083,12083,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,49720,49720,49720,49720,49720,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,8729,8729,8729,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,16672,8729,8729,8729,8729,16672,16672,16672,16672,16672,8729,8729,8729,8729,8729,8729,8729,16672,16672,16672,16672,16672,16672,16672,8729,8729,16672,16672,16672,16672,16672,16672,8729,8729,8729,8729,8729,8729,16672,16672,16672,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,16672,16672,8729,8729,8729,8729,8729,8729,16672,16672,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,8729,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,33554,273,273,273,273,33554,33554,33554,273,33554,33554,33554,273,273,273,273,273,33554,33554,273,273,33554,273,33554,33554,273,273,33554,33554,273,33554,33554,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,42761,42761,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,273,42761,42761,42761,42761,42761,42761,273,273,42761,42761,42761,42761,273,273,42761,42761,42761,273,273,273,42761,42761,42761,42761,273,42761,42761,273,273,42761,42761,273,42761,42761,43273,43273,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,42761,43273,43273,43273,43273,43273,43273,42761,42761,43273,43273,43273,43273,42761,42761,43273,43273,43273,42761,42761,42761,43273,43273,43273,43273,42761,43273,43273,42761,42761,43273,43273,42761,
 };
 
-uint16_t skyColour = 2510;
-uint16_t soilColour = 12562;
-
-const uint16_t *pipeIMG = pipeEnd;
-const uint16_t *backgroundIMG = background;
-const uint16_t *pipeStartIMG = pipeStart;
-
 int main()
 {
 	initClock();
@@ -167,15 +159,6 @@ int main()
 	initSerial();
 
 	dayNight = 1;
-	
-	if (dayNight){
-		pipeIMG = pipeEndNight;
-		backgroundIMG = backgroundNight;
-		pipeStartIMG = pipeStartNight;
-		skyColour = 33336;
-		soilColour = 43273;
-	}
-
 	initBackground();
 
 	while (1){
@@ -192,14 +175,13 @@ int main()
 	return 0;
 }
 
-// Main game loop
 void gameLoop(){
 	struct pipe pipes[currDifficulty[0].pipesAmt];
 	initPipe(pipes);
 	initBird();
 
 	uint8_t gameCrashed = 0;
-	uint16_t counter = 0;
+	int counter = 0;
 
 	
 	while(1)
@@ -243,7 +225,7 @@ void gameLoop(){
 				bird[0].oldx = bird[0].x;
 				bird[0].oldy = bird[0].y;	
 
-				putImageV2(bird[0].x,bird[0].y,BIRDWIDTH,BIRDHEIGHT,bird1);
+				putImageV2(bird[0].x,bird[0].y,BIRDWIDTH,BIRDHEIGHT,bird1,0);
 				
 			}
 			else{
@@ -253,19 +235,18 @@ void gameLoop(){
 		else if (bird[0].y >= MAXSCREENY - BIRDHEIGHT){
 			delay(50);
 			fillBackground(bird[0].oldx,bird[0].oldy,BIRDWIDTH,BIRDHEIGHT); // x, y, width, height, colour
-			putImageV2(bird[0].x,MAXSCREENY - BIRDHEIGHT,BIRDWIDTH,BIRDHEIGHT,bird1);
+			putImageV2(bird[0].x,MAXSCREENY - BIRDHEIGHT,BIRDWIDTH,BIRDHEIGHT,bird1,0);
 		}
 		else if (bird[0].y <= MINSCREENY){
 			delay(50);
 			fillBackground(bird[0].oldx,bird[0].oldy,BIRDWIDTH,BIRDHEIGHT); // x, y, width, height, colour
-			putImageV2(bird[0].x,0,BIRDWIDTH,BIRDHEIGHT,bird1);
+			putImageV2(bird[0].x,0,BIRDWIDTH,BIRDHEIGHT,bird1, 0);
 		}
 
 		delay(50);
 	}
 }
 
-// Initialize map difficulty
 void initDifficulty(){
 	currDifficulty[0].pipesAmt = 3;
 	currDifficulty[0].start = 60;
@@ -279,43 +260,75 @@ Render 4 parts as there isn't enough space in rom to store full image,
 then render the sky & soil
 */
 void initBackground(){
-	for (uint8_t i = 0; i < bWidth*4; i += bWidth){
-		putImageV2(i, bStart, bWidth, bHeight, backgroundIMG);
+	if (!dayNight){
+		for (uint8_t i = 0; i < bWidth*4; i += bWidth){
+			putImageV2(i,bStart,bWidth,bHeight,background,0);
+		}
 	}
+	else{
+		for (uint8_t i = 0; i < bWidth*4; i += bWidth){
+			putImageV2(i,bStart,bWidth,bHeight,backgroundNight,0);
+		}
+	}
+
+	if (!dayNight){
+		fillRectangle(0, 0, MAXSCREENX, bStart, 2510); // render sky
+		fillRectangle(0, bStart + bHeight, MAXSCREENX, MAXSCREENY - (bStart + bHeight), 12562); // render soil
+	}
+	else{
+		fillRectangle(0, 0, MAXSCREENX, bStart, 33336);
+		fillRectangle(0, bStart + bHeight, MAXSCREENX, MAXSCREENY - (bStart + bHeight), 43273);
+	}
+}
+
+// Function for drawing bottomPipe
+void drawBottomPipe(struct pipe *pipes, uint8_t i){
+	fillBackground(pipes[i].oldx + PIPEWIDTH - FILLSTART, pipes[i].oldy + pipes[i].gap, FILLEND, PIPEHEIGHT);
+
+	pipes[i].oldx = pipes[i].x;
+	pipes[i].oldy = pipes[i].y;
+	pipes[i].x -= pipes[i].speed;
+	putImageV2(pipes[i].x, pipes[i].y + pipes[i].gap, PIPEWIDTH, PIPEHEIGHT, pipeStart, 0);
 	
-	fillRectangle(0, 0, MAXSCREENX, bStart, skyColour); // render sky
-	fillRectangle(0, bStart + bHeight, MAXSCREENX, MAXSCREENY - (bStart + bHeight), soilColour); // render soil
+	int start = pipes[i].y + PIPEHEIGHT + pipes[i].gap;
+
+	for (start = start; start < (MAXSCREENY - PIPECHUNKHEIGHT); start += PIPECHUNKHEIGHT ){
+		fillBackground(pipes[i].oldx + PIPEWIDTH - FILLSTART, start, FILLEND, PIPECHUNKHEIGHT);
+		putImageV2(pipes[i].x, start, PIPEWIDTH, PIPECHUNKHEIGHT, pipeChunk, 0);
+	}
+
+	for(int j = start; j <= MAXSCREENY - 1; j++){
+		fillBackground(pipes[i].oldx + PIPEWIDTH - FILLSTART, j, FILLEND, 1);
+		putImageV2(pipes[i].x, j, PIPEWIDTH, PIPEFILLERHEIGHT, pipeEnd, 0);
+	}
 }
 
 // Function for drawing topPipe
 void drawTopPipe(struct pipe *pipes, uint8_t i){
 
 	// only fill the last 3 pixels rather than the whole image
-	fillBackground(pipes[i].oldx + PIPEWIDTH - FILLSTART, MINSCREENY, FILLEND, pipes[i].oldy - pipes[i].gap + PIPEHEIGHT);
+	fillBackground(pipes[i].oldx + PIPEWIDTH - FILLSTART, pipes[i].oldy - pipes[i].gap , FILLEND, PIPEHEIGHT);
 
 	pipes[i].oldx = pipes[i].x;
 	pipes[i].oldy = pipes[i].y;
 	pipes[i].x -= pipes[i].speed;
 
-	putImageV2(pipes[i].x, pipes[i].y - pipes[i].gap, PIPEWIDTH, PIPEHEIGHT, pipeStartIMG);
+	putImageV2(pipes[i].x, pipes[i].y - pipes[i].gap, PIPEWIDTH, PIPEHEIGHT, pipeStart, 0);
 	
-	uint8_t start = pipes[i].y - pipes[i].gap;
+	// y represents the y cords inbetween both of the pipes 
+	int start = pipes[i].y - pipes[i].gap - PIPECHUNKHEIGHT;
 
-	putPipe(pipes[i].x, MINSCREENX, PIPEWIDTH, start, pipeIMG);
-}
+	for (start = start; start >= (MINSCREENY); start -= PIPECHUNKHEIGHT){
+		fillBackground(pipes[i].oldx + PIPEWIDTH - FILLSTART, start, FILLEND, PIPECHUNKHEIGHT);
+		putImageV2(pipes[i].x, start, PIPEWIDTH, PIPECHUNKHEIGHT, pipeChunk, 0);
+	}
 
-// Function for drawing bottomPipe
-void drawBottomPipe(struct pipe *pipes, uint8_t i){
-	fillBackground(pipes[i].oldx + PIPEWIDTH - FILLSTART, pipes[i].oldy + pipes[i].gap, FILLEND, MAXSCREENY - (pipes[i].oldy + pipes[i].gap));
-
-	pipes[i].oldx = pipes[i].x;
-	pipes[i].oldy = pipes[i].y;
-	pipes[i].x -= pipes[i].speed;
-	putImageV2(pipes[i].x, pipes[i].y + pipes[i].gap, PIPEWIDTH, PIPEHEIGHT, pipeStartIMG);
+	// render filler pipes to fill gap between chunkPipes and MAX/MIN screen cords
+	for(int j = start - 1 + PIPECHUNKHEIGHT; j >= MINSCREENY; j--){ 
+		fillBackground(pipes[i].oldx + PIPEWIDTH - FILLSTART, j, FILLEND, 1);
+		putImageV2(pipes[i].x, j, PIPEWIDTH, PIPEFILLERHEIGHT, pipeEnd, 0);
+	}
 	
-	uint8_t start = pipes[i].y + PIPEHEIGHT + pipes[i].gap;
-
-	putPipe(pipes[i].x, start, PIPEWIDTH, MAXSCREENY - start, pipeIMG);
 }
 
 // Function for drawing the top & bottom pipes
@@ -341,7 +354,6 @@ void endOfPipeCheck(struct pipe *pipes){
 	}
 }
 
-// Initialize pipe settings
 void initPipe(struct pipe *pipes){
 
 	for (int i = 0; i < currDifficulty[0].pipesAmt; i++){
@@ -358,7 +370,6 @@ void initPipe(struct pipe *pipes){
 	pipes[0].active = 1;
 }
 
-// Initializer bird settings
 void initBird(){
 
 	bird[0].x = 35;
@@ -382,9 +393,8 @@ void activatePipes(struct pipe *pipes){
 	}
 }
 
-// Function for checking if points ax1, ax2, ay1, ay2 overlap with bx1, bx2, by1, by2
-uint8_t rectsOverlap(uint16_t ax1, uint16_t ax2, uint16_t ay1, uint16_t ay2,
-                  uint16_t bx1, uint16_t bx2, uint16_t by1, uint16_t by2)
+int rectsOverlap(int ax1, int ax2, int ay1, int ay2,
+                  int bx1, int bx2, int by1, int by2)
 {
     if (ax2 <= bx1) return 0;
     if (bx2 <= ax1) return 0;
@@ -395,10 +405,10 @@ uint8_t rectsOverlap(uint16_t ax1, uint16_t ax2, uint16_t ay1, uint16_t ay2,
     return 1;
 }
 
-// Function for checking if the bird colides with either pipe
+// Function for checking if the birdColides with either pipe
 uint8_t checkCollision(struct pipe *pipes, int *counter){
 
-	uint8_t i = *counter % currDifficulty[0].pipesAmt; // next pipe number
+	int i = *counter % currDifficulty[0].pipesAmt; // next pipe number
 
 	int birdX1 = bird[0].x; // left x cords
 	int birdY1 = bird[0].y; // top y cords
@@ -423,61 +433,56 @@ uint8_t checkCollision(struct pipe *pipes, int *counter){
 
 }
 
-// Function for drawing the pipes onto the screen
-void putPipe(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t *Image){
-	/*
-	Rather than using a for loop in the drawBottomPipe/drawTopPipe we draw it using this function
-	Reasoning behind this is that using openApertue and transferSPI16 repeatedly causes performance issue
-	The main difference between this function and putImageV2 is that index of the image is found using modulo
-	*/
-	uint16_t Colour;
-    uint16_t baseX = x;
-    uint16_t baseY = y;
 
-    openAperture(x, y, x + width - 1, y + height - 1); // open the dimensions of the image for writing
-    DCHigh();
-
-	for (y = 0; y < height; y++)
-        {
-            for (x = 0; x < width; x++)
-            {
-                Colour = Image[x % PIPEWIDTH]; // rather than making one big const array, use a small one and just use modulo
-
-                if (Colour == 5536) { // 5536 = word value of the background pixel within any of the image arrays 
-                    Colour = getBackgroundPixel(baseX + x, baseY + y); // get background pixel if the current pixel is a background pixel
-                }
-
-                transferSPI16(Colour);
-            }
-        }
-}
-
-// New version of putImage which replaces pixels (of colour 5536) to the background pixel
-void putImageV2(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t *Image)
+// new version of putImage which replace pixels (of colour 5536) to the background pixel
+void putImageV2(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t *Image, int vOrientation)
 {
     uint16_t Colour;
     uint32_t offset = 0;
     uint16_t baseX = x;
     uint16_t baseY = y;
 
-    openAperture(x, y, x + width - 1, y + height - 1); // open the dimensions of the image for writing
-    DCHigh();
+    openApertureV2(x, y, x + width - 1, y + height - 1); // open the dimensions of the image for writing
+    DCHighV2();
 
+    if (vOrientation == 0)
+    {
+        for (y = 0; y < height; y++)
+        {
+            offset = y * width;
+            for (x = 0; x < width; x++)
+            {
+                Colour = Image[offset + x];
 
-	for (y = 0; y < height; y++)
-	{
-		offset = y * width;
-		for (x = 0; x < width; x++)
-		{
-			Colour = Image[offset + x];
+                if (Colour == 5536) { // 5536 = word value of the background pixel within any of the image arrays 
+                    Colour = getBackgroundPixel(baseX + x, baseY + y); // get background pixel if the current pixel is a background pixel
+                }
 
-			if (Colour == 5536) { // 5536 = word value of the background pixel within any of the image arrays 
-				Colour = getBackgroundPixel(baseX + x, baseY + y); // get background pixel if the current pixel is a background pixel
-			}
+				if (dayNight){
+					Colour = getNightColour(Colour);
+				}
 
-			transferSPI16(Colour);
-		}
-	}
+                transferSPI16V2(Colour);
+            }
+        }
+    }
+    else
+    {
+        for (y = 0; y < height; y++)
+        {
+            offset = (height - (y + 1)) * width;
+            for (x = 0; x < width; x++)
+            {
+                Colour = Image[offset + x];
+
+                if (Colour == 5536) {
+                    Colour = getBackgroundPixel(baseX + x, baseY + y);
+                }
+
+                transferSPI16V2(Colour);
+            }
+        }
+    }
 }
 
 // Function for filling an area with the background image
@@ -486,21 +491,20 @@ void fillBackground(uint16_t x,uint16_t y,uint16_t width, uint16_t height)
 	int colour;
 	uint16_t baseX = x;
 	uint16_t baseY = y;
-	openAperture(x, y, x + width - 1, y + height - 1);
-	DCHigh();
+	openApertureV2(x, y, x + width - 1, y + height - 1);
+	DCHighV2();
 
 	for (y = 0; y < height; y++){
 		for (x = 0; x < width; x++){
 
 			colour = getBackgroundPixel(baseX + x, baseY + y);
 
-			transferSPI16(colour);
+			transferSPI16V2(colour);
 		}
 	}
 }
 
-// Function for drawing a bounding box around printText()
-void addBoundingBox(uint8_t x, uint16_t y, uint16_t colour, uint8_t thickness){
+void addBoundingBox(uint8_t x, uint16_t y, int colour, uint8_t thickness){
 	uint8_t numPixelWidth = 33;
 	uint8_t numPixelHeight = 7;
 
@@ -518,56 +522,143 @@ void addBoundingBox(uint8_t x, uint16_t y, uint16_t colour, uint8_t thickness){
 }
 
 // Returns the pixel colour of the background image based on the given X, Y cords 
-uint16_t getBackgroundPixel(uint16_t screenX, uint16_t screenY){
+unsigned int getBackgroundPixel(uint16_t screenX, uint16_t screenY){
 	uint16_t colour = 0;
 
 	if (screenY >= bStart && screenY < (bStart + bHeight)) { // check if x, y are within the background cords
 		uint8_t index = screenX % bWidth; // column of the x pixel
 		uint16_t backgroundIndex = (screenY - bStart) * bWidth + index; // (index of y * row of y pixel) + column of x pixel
-
-		colour = backgroundIMG[backgroundIndex];
+		if (!dayNight){
+			colour = background[backgroundIndex];
+		}
+		else{
+			colour = backgroundNight[backgroundIndex];
+		}
+	} 
+	else if (screenY < bStart) { // if y cords are more than background y, colour = sky
+		if (!dayNight){
+			colour = 2510;
+		}
+		else{
+			colour = 33336;
+		}
+	} 
+	else if (screenY >= bStart + bHeight){ // if y cords are less than background y, colour = soil
+		if (!dayNight){
+			colour = 12562;
+		}
+		else{
+			colour = 43273;
+		}
 	}
-
-	else if (screenY < bStart) colour = skyColour; // if y cords are more than background y, colour = sky 
-	else if (screenY >= bStart + bHeight) colour = soilColour; // if y cords are less than background y, colour = soil
-
-	else colour = 0;
+	else{
+		colour = 0;
+	}
 
 	return colour;
 }
 
+// Function for returning the day pixels corresponding night pixel
+uint16_t getNightColour(uint16_t colour){
+
+	// colour table of the day pixel corresponding to the night pixel 
+    static const struct ColourTable colours[] = {
+        {2625, 256},
+        {10788, 24833},
+        {13142, 27411},
+        {14719, 20789},
+        {39030, 44844},
+        {39559, 45373},
+        {43820, 57857},
+        {45389, 59395},
+        {46174, 60179},
+        {55150, 60964},
+        {60980, 9474},
+    };
+
+	// binary search through the colour table to find the corresponding pixel
+    int8_t lower = 0;
+	int8_t higher = sizeof(colours)/sizeof(colours[0]);
+
+    while (lower < higher){
+
+        size_t mid = lower + (higher - lower) / 2;
+
+        if (colours[mid].key == colour) {
+			return colours[mid].val; // return day pixels corresponding value
+		}
+
+        if (colours[mid].key < colour) {
+			lower = mid + 1;
+		}
+
+        else higher = mid;
+    }
+
+	// if night pixel colour not found, return input 
+    return colour;
+}
+
 uint8_t anyButtonPressed(){
-	return (downPressed() || upPressed() || leftPressed() || rightPressed() || enterPressed()) ? 1 : 0;
+	if (downPressed() || upPressed() || leftPressed() || rightPressed() || enterPressed()){
+		return 1;
+	}
+	else{
+		return 0;
+	}
 }
 
 uint8_t downPressed(){
-	return ((GPIOA->IDR & (1 << 11)) == 0) ? 1 : 0;
+	if ( (GPIOA->IDR & (1 << 11)) == 0){
+		return 1;
+	}
+	else{
+		return 0;
+	}
 }
 
 uint8_t upPressed(){
-	return ((GPIOA->IDR & (1 << 8)) == 0) ? 1 : 0;
+	if ( (GPIOA->IDR & (1 << 8)) == 0){
+		return 1;
+	}
+	else{
+		return 0;
+	}
 }
 
 uint8_t rightPressed(){
-	return ((GPIOB->IDR & (1 << 4))==0) ? 1 : 0;
+	if ((GPIOB->IDR & (1 << 4))==0){
+		return 1;
+	}
+	else{
+		return 0;
+	}
 }
 
 uint8_t leftPressed(){
-	return ((GPIOB->IDR & (1 << 5))==0) ? 1 : 0;
+	if ((GPIOB->IDR & (1 << 5))==0){
+		return 1;
+	}
+	else{
+		return 0;
+	}
 }
 
 uint8_t enterPressed(){
-	return ((GPIOA->IDR & (1 << 1))==0) ? 1 : 0;
+	if ((GPIOA->IDR & (1 << 1))==0){
+		return 1;
+	}
+	else{
+		return 0;
+	}
 }
 
-// Function for checking if a button gets pressed only once, avoids button holding
+// function for checking if a button gets pressed only once, avoids button holding
 uint8_t enterPressedOnce() {
 	static uint8_t prevEnterState = 0; // previous state of the button
-
     uint8_t currState = ((GPIOA->IDR & (1 << 1)) == 0) ? 1 : 0; // if button gets pressed, 1, else 0
     uint8_t pressed = (currState == 1 && prevEnterState == 0); // if button is pressed and hasn't been pressed before
     prevEnterState = currState;
-
     return pressed;
 }
 

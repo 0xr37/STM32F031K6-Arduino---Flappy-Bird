@@ -485,7 +485,7 @@ void printText(const char *Text,uint16_t x, uint16_t y, uint16_t ForeColour, uin
         x = x + FONT_WIDTH + 2;
     }
 }
-void printTextX2(const char *Text, uint16_t x, uint16_t y, uint16_t ForeColour, uint16_t BackColour)
+void printTextX2(const char *Text, uint16_t x, uint16_t y, uint16_t ForeColour, uint16_t BackColour, uint8_t transperncy)
 {
 	#define Scale 2
 	// This function draws each character individually scaled up by a factor of 2.  It uses an array called TextBox as a temporary storage
@@ -525,7 +525,23 @@ void printTextX2(const char *Text, uint16_t x, uint16_t y, uint16_t ForeColour, 
             }
             Col++;
         }
-        putImage(x, y, FONT_WIDTH*Scale, FONT_HEIGHT*Scale, (uint16_t *)TextBox,0,0);
+
+        if (transperncy){
+            putImageV2(x, y, FONT_WIDTH*Scale, FONT_HEIGHT*Scale, (uint16_t *)TextBox);
+
+            if (Index != len -1){
+                fillBackground(x+FONT_WIDTH*Scale, y, 2, FONT_HEIGHT*Scale);
+            }
+        }
+        else{
+            putImage(x, y, FONT_WIDTH*Scale, FONT_HEIGHT*Scale, (uint16_t *)TextBox, 0, 0);
+
+            if (Index != len -1){
+                fillRectangle(x+FONT_WIDTH*Scale, y, 2, FONT_HEIGHT*Scale, BackColour);
+            }
+        }
+
+
         x = x + FONT_WIDTH*Scale + 2;
     }
 }
@@ -561,7 +577,7 @@ void printNumberX2(uint16_t Number, uint16_t x, uint16_t y, uint16_t ForeColour,
     Buffer[1] = Number % 10 + '0';
     Number = Number / 10;
     Buffer[0] = Number % 10 + '0';
-    printTextX2(Buffer, x, y, ForeColour, BackColour);	
+    printTextX2(Buffer, x, y, ForeColour, BackColour, 0);	
 }
 uint16_t RGBToWord(uint16_t R, uint16_t G, uint16_t B)
 {

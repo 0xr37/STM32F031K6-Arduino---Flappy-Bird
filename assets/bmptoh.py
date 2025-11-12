@@ -47,5 +47,5 @@ def hexToWord(hex):
 
 if __name__ == "__main__":
 	main()
-    #idk('0A0A0A')
+    #hexToWord('FFFFFF')
 	

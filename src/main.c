@@ -83,7 +83,9 @@ struct menu{
 	int textHeight; // Height of printText() in pixels
 	int textGap; // Gap in pixels between each text drawn by printText()
 	int textIncrement; // The spacing in pixels between any two texts drawn by printText()
+	const char **textUsed; // Pointer to the array of strings to be used
 	int sizeOfText; // Size of the menuText array
+	uint8_t changeMenu;
 };
 
 void initClock(void);
@@ -131,7 +133,7 @@ uint8_t dayNight = 0;
 
 struct difficulty difficulty[1];
 struct bird bird[1];
-struct menu menu[1];
+struct menu menu[5];
 
 
 const uint16_t bird1[]=
@@ -180,6 +182,7 @@ const uint16_t corner[]=
 };
 
 const char *menuText[] = {"Play", "Difficulty", "Options", "Info"};
+const char *optionsText[] = {"Game over text", "Day/Night", "Sound", "Flapping anim", "Go Back"};
 
 uint16_t skyColour = 2510;
 uint16_t soilColour = 12562;
@@ -190,8 +193,9 @@ const uint16_t *pipeStartIMG = pipeStart;
 
 // Function for initializing menu settings
 void initMenu(){
-	menu[0].menuSelection = 0;
-	menu[0].oldSelection = 0;
+	// 0 - Initial menu
+	menu[0].menuSelection = 1;
+	menu[0].oldSelection = 1;
 	menu[0].menuX = 10;
 	menu[0].menuY = 50;
 	menu[0].menuWidth = 108;
@@ -201,85 +205,153 @@ void initMenu(){
 	menu[0].textHeight = 7;
 	menu[0].textGap = 4;
 	menu[0].textIncrement = menu[0].textHeight + menu[0].textGap; // 11
+	menu[0].textUsed = menuText;
 	menu[0].sizeOfText = sizeof(menuText)/sizeof(menuText[0]);
+
+	// 1 - Difficulty Menu
+
+	// 2- Options
+	menu[2].menuSelection = 1;
+	menu[2].oldSelection = 1;
+	menu[2].menuX = 0;
+	menu[2].menuY = 0;
+	menu[2].menuWidth = MAXSCREENX;
+	menu[2].menuHeight = MAXSCREENY;
+	menu[2].baseX = menu[2].menuX + cornerSIZE;
+	menu[2].baseY = menu[2].menuY + cornerSIZE;
+	menu[2].textHeight = 7;
+	menu[2].textGap = 4;
+	menu[2].textIncrement = menu[2].textHeight + menu[2].textGap;
+	menu[2].textGap = 4;
+	menu[2].textUsed = optionsText;
+	menu[2].sizeOfText = sizeof(optionsText)/sizeof(optionsText[0]);
+
+	// 3 - Info
+
+	// 4 - Game Over
 }
 
 // Function for drawing the menu sprites & text
-void drawMenu(){
-	initMenu();
+void drawMenu(uint8_t i){
 
 	// Create menu block
-	fillRectangle(menu[0].menuX, menu[0].menuY, menu[0].menuWidth, menu[0].menuHeight, 0); // menu size of colour 0 (black)
-	fillRectangle(menu[0].menuX+2, menu[0].menuY+2, menu[0].menuWidth-4, menu[0].menuHeight-4, 20083); // fill inside of menu size with gray
-	fillRectangle(menu[0].menuX+3, menu[0].menuY+3, menu[0].menuWidth-6, menu[0].menuHeight-6, 0); // fill insize of gray with black, this makes the gray look like a border
+	fillRectangle(menu[i].menuX, menu[i].menuY, menu[i].menuWidth, menu[i].menuHeight, 0); // menu size of colour 0 (black)
+	fillRectangle(menu[i].menuX+2, menu[i].menuY+2, menu[i].menuWidth-4, menu[i].menuHeight-4, 20083); // fill inside of menu size with gray
+	fillRectangle(menu[i].menuX+3, menu[i].menuY+3, menu[i].menuWidth-6, menu[i].menuHeight-6, 0); // fill insize of gray with black, this makes the gray look like a border
 
 	// Put corner image in each corner
-	putImageV2(menu[0].menuX, menu[0].menuY, cornerSIZE, cornerSIZE, corner, 0, 0); // top left corner
-	putImageV2(menu[0].menuWidth-2, menu[0].menuY, cornerSIZE, cornerSIZE, corner, 1, 0);// top right corner
-	putImageV2(menu[0].menuX, menu[0].menuY + menu[0].menuHeight - cornerSIZE, cornerSIZE, cornerSIZE, corner, 0, 1); // bottom left corner
-	putImageV2(menu[0].menuWidth - 2, menu[0].menuY + menu[0].menuHeight - cornerSIZE, cornerSIZE, cornerSIZE, corner, 1, 1); // bottom right corner
+	putImageV2(menu[i].menuX, menu[i].menuY, cornerSIZE, cornerSIZE, corner, 0, 0); // top left corner
+    putImageV2(menu[i].menuX + menu[i].menuWidth - cornerSIZE, menu[i].menuY, cornerSIZE, cornerSIZE, corner, 1, 0);// top right corner
+    putImageV2(menu[i].menuX, menu[i].menuY + menu[i].menuHeight - cornerSIZE, cornerSIZE, cornerSIZE, corner, 0, 1); // bottom left corner
+    putImageV2(menu[i].menuX + menu[i].menuWidth - cornerSIZE, menu[i].menuY + menu[i].menuHeight - cornerSIZE, cornerSIZE, cornerSIZE, corner, 1, 1); // bottom right corner
 
 	// Draw each string from menuText array 
-	for (int i = 0; i<menu[0].sizeOfText; i++){
-		printText(menuText[i], menu[0].baseX, menu[0].baseY + (menu[0].textIncrement * i), 65535, 0); // baseY+(textIncrement*i)
+	for (int j = 0; j<menu[i].sizeOfText; j++){
+		printText(menu[i].textUsed[j], menu[i].baseX, menu[i].baseY + (menu[i].textIncrement * j), 65535, 0); // baseY+(textIncrement*i)
 	}
 }
+void menuNavigation(uint8_t i){
 
-// Function for navigating the menu interface
-void menuInterface(){
-	drawMenu();
+	if (menu[i].changeMenu){
 
-	uint8_t changeMenu = 1; // Force the first item in the array to be redrawn
+		uint16_t oldY = menu[i].baseY + menu[i].textIncrement * menu[i].oldSelection;
+		uint16_t newY = menu[i].baseY + menu[i].textIncrement * menu[i].menuSelection;
+		uint16_t textWidth = menu[i].menuX + menu[i].menuWidth - cornerSIZE/2 - menu[i].baseX;
 
+		// Draw over the old selection & redraw text
+		//fillRectangle(menu[i].baseX, oldY-1, textWidth, menu[i].textHeight+2, 0);
+		fillRectangle(menu[i].baseX, oldY-1, textWidth, menu[i].textHeight+2, 0);
+		printText(menu[i].textUsed[menu[i].oldSelection], menu[i].baseX, oldY, 65535, 0);
+
+		// Keep track of the old selection for the next time the code block runs
+		menu[i].oldSelection = menu[i].menuSelection; 
+
+		// Draw over new selection, draw cursor then draw new text with shifted x position
+		fillRectangle(menu[i].baseX, newY, textWidth, menu[i].textHeight, 0);
+		putImage(menu[i].baseX, newY-1, cursorWidth, cursorHeight, cursor, 0, 0);
+		printText(menu[i].textUsed[menu[i].menuSelection], menu[i].baseX + cursorWidth + 2, newY, 65535, 0);
+
+		menu[i].changeMenu = 0;
+	}
+
+
+	if (upPressed()){
+		if (menu[i].menuSelection <= 0) menu[i].menuSelection = menu[i].sizeOfText - 1; // If out of bounds, reset to max size
+		else menu[i].menuSelection--;
+		menu[i].changeMenu = 1;
+		delay(200);
+	}
+	if (downPressed()){
+		if (menu[i].menuSelection < menu[i].sizeOfText - 1) menu[i].menuSelection++; // If out of bounds, reset to min size
+		else menu[i].menuSelection = 0;
+		menu[i].changeMenu = 1;
+		delay(200);
+	}	
+}
+
+void optionsMenu(){
+	menu[2].changeMenu = 1;
 	while (1){
 
-		if (changeMenu){
-
-			uint16_t oldY = menu[0].baseY + menu[0].textIncrement * menu[0].oldSelection;
-			uint16_t newY = menu[0].baseY + menu[0].textIncrement * menu[0].menuSelection;
-			uint16_t textWidth = MAXSCREENX - menu[0].baseX * 2;
-
-			// Draw over the old selection & redraw text
-			fillRectangle(menu[0].baseX, oldY-1, textWidth, menu[0].textHeight+2, 0);
-			printText(menuText[menu[0].oldSelection], menu[0].baseX, oldY, 65535, 0);
-
-			// Keep track of the old selection for the next time the code block runs
-			menu[0].oldSelection = menu[0].menuSelection; 
-
-			// Draw over new selection, draw cursor then draw new text with shifted x position
-			fillRectangle(menu[0].baseX, newY, textWidth, menu[0].textHeight, 0);
-			putImage(menu[0].baseX, newY-1, cursorWidth, cursorHeight, cursor, 0, 0);
-			printText(menuText[menu[0].menuSelection], menu[0].baseX + cursorWidth + 2, newY, 65535, 0);
-
-			changeMenu = 0;
-		}
-
-
-		if (upPressed()){
-			if (menu[0].menuSelection <= 0) menu[0].menuSelection = menu[0].sizeOfText - 1; // If out of bounds, reset to max size
-			else menu[0].menuSelection--;
-			changeMenu = 1;
-			delay(200);
-		}
-		if (downPressed()){
-			if (menu[0].menuSelection < menu[0].sizeOfText - 1) menu[0].menuSelection++; // If out of bounds, reset to min size
-			else menu[0].menuSelection = 0;
-			changeMenu = 1;
-			delay(200);
-		}
+		menuNavigation(2);
 
 		if (enterPressed()){
-			switch (menu[0].menuSelection){
-				case 0:
+			switch (menu[2].menuSelection){
+				case 0: // play
 					initBackground();
 					gameLoop();
 					return;
-				case 1:
+				case 1: // Day Night
+					/*Clear current text
+					Call menuInterface and pass number 1, which indicates difficulty menu
+					instead of menu[0] I have menu[i], 
+					*/
+					dayNight ^= 1;
+					delay(100);
+					return;
+				case 2: // Sound
+					// drawMenu(2);
+					// menuNavigation(2);
+					return;
+				case 3: // Flapping anim
+					return;
+				case 4: // Go back
+					return;
+				default:
 					break;
-				case 2:
-					break;
-				case 3:
-					break;
+			}
+		}
+
+		delay(50);
+	}
+}
+
+// Function for the main menu 
+void menuInterface(){
+	menu[0].changeMenu = 1;
+	while (1){
+
+		menuNavigation(0);
+
+		if (enterPressed()){
+			switch (menu[0].menuSelection){
+				case 0: // play
+					initBackground();
+					gameLoop();
+					return;
+				case 1: // Difficulty
+					/*Clear current text
+					Call menuInterface and pass number 1, which indicates difficulty menu
+					instead of menu[0] I have menu[i], 
+					*/
+					return;
+				case 2: // Options
+					drawMenu(2);
+					optionsMenu();
+					delay(100);
+					return;
+				case 3: // Info
+					return;
 				
 				default:
 					break;
@@ -287,6 +359,23 @@ void menuInterface(){
 		}
 
 		delay(50);
+	}
+}
+
+void initDayNight(){
+	if (dayNight){
+		pipeIMG = pipeEndNight;
+		backgroundIMG = backgroundNight;
+		pipeStartIMG = pipeStartNight;
+		skyColour = 33336;
+		soilColour = 43273;
+	}
+	else{
+		pipeIMG = pipeEnd;
+		backgroundIMG = background;
+		pipeStartIMG = pipeStart;
+		skyColour = 2510;
+		soilColour = 12562;
 	}
 }
 
@@ -299,14 +388,6 @@ int main()
 
 	dayNight = 0;
 	
-	if (dayNight){
-		pipeIMG = pipeEndNight;
-		backgroundIMG = backgroundNight;
-		pipeStartIMG = pipeStartNight;
-		skyColour = 33336;
-		soilColour = 43273;
-	}
-
 	initBackground();
 
 	while (1){
@@ -315,12 +396,15 @@ int main()
 		}
 	}
 
+	initMenu();
 	initDifficulty();
 
 	delay(500);
 	// gameLoop();
 	while (1){
+		initDayNight();
 		initBackground();
+		drawMenu(0);
 		menuInterface();
 	}
 

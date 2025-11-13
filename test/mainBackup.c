@@ -86,6 +86,7 @@ struct difficulty{
 	uint16_t gap;
 	uint8_t active;
 	uint8_t oldActive;
+	int speed;
 };
 
 struct flags{
@@ -169,6 +170,7 @@ void drawPipe(struct pipe *pipes);
 void endOfPipeCheck(struct pipe *pipes);
 void activatePipes(struct pipe *pipes);
 uint8_t checkCollision(struct pipe *pipes);
+void updateDifficulty(uint8_t i);
 uint8_t rectsOverlap(uint16_t ax1, uint16_t ax2, uint16_t ay1, uint16_t ay2, uint16_t bx1, uint16_t bx2, uint16_t by1, uint16_t by2);
 
 void fillBackground(uint16_t x,uint16_t y,uint16_t width, uint16_t height);
@@ -369,9 +371,9 @@ void initMenu(){
 	// 4 - Crash Menu
 	menu[CRASHINDEX].menuSelection = 0;
 	menu[CRASHINDEX].oldSelection = 0;
-	menu[CRASHINDEX].menuX = 30;
-	menu[CRASHINDEX].menuY = 50;
-	menu[CRASHINDEX].menuWidth = 68;
+	menu[CRASHINDEX].menuX = 20;
+	menu[CRASHINDEX].menuY = 60;
+	menu[CRASHINDEX].menuWidth = 88;
 	menu[CRASHINDEX].menuHeight = 50;
 	menu[CRASHINDEX].baseX = menu[CRASHINDEX].menuX + cornerSIZE;
 	menu[CRASHINDEX].baseY = menu[CRASHINDEX].menuY + cornerSIZE;
@@ -552,41 +554,6 @@ void statsMenu(){
 	}
 }
 
-void crashMenu(){
-	menu[STATSINDEX].changeMenu = 1; // Force the arrow to get drawn
-	drawStats(STATSINDEX);
-	while (1){
-
-		menuNavigation(STATSINDEX);
-
-		if (enterPressedOnce() || rightPressed() || leftPressed()){
-			switch (menu[STATSINDEX].menuSelection){
-				case 0: // High Score
-					stats.highScore = 0;
-					continue;
-				case 1: // Total Score
-					stats.totScore = 0;
-					continue;
-				case 2: // Score
-					stats.oldScore = 0;
-					continue;
-				case 3: // Amount Crashed
-					stats.amtCrashed = 0;
-					continue;;
-				case 4: // Go Back
-					delay(200);
-					return;
-				default:
-					break;
-			}
-			drawStats(STATSINDEX);
-			delay(200);
-			continue;
-		}
-
-		delay(50);
-	}
-}
 
 // Function for redrawing a selected text with a different colour, i.e. turn off sound, sound colour green -> red; redraw sound text
 void updateOption(int currMenu, int selection){
@@ -690,13 +657,54 @@ void optionsMenu(){
 	}
 }
 
+void birdFlappingMenu(int *imgCounter, uint8_t *change){
+	// switch(*imgCounter){
+	// 	case 0:
+	// 		images.birdIMG = birdUp;
+	// 		*change ^= 1;
+	// 	case 50:
+	// 		images.birdIMG = birdMid;
+	// 		*change ^= 1;
+	// 	case 100:
+	// 		images.birdIMG = birdDown;
+	// 		*change ^= 1;
+	// 	case 150:
+	// 		images.birdIMG = birdMid;
+	// 		*change ^= 1;
+	// 	case 200:
+	// 		images.birdIMG = birdUp;
+	// 		*change ^= 1;
+	// 		*imgCounter = 0;
+	// }
 
+	if (*imgCounter < 50){
+		images.birdIMG = birdUp;
+
+	}
+	else if(*imgCounter > 50 && *imgCounter < 100){
+		images.birdIMG = birdMid;
+	}
+	else if(*imgCounter > 100 && *imgCounter < 150){
+		images.birdIMG = birdDown;
+	}
+	else{
+		*imgCounter = 0;
+	}
+}
 
 
 // Function for the main menu 
 void menuInterface(){
 	menu[MENUINDEX].changeMenu = 1;
+	int imgCounter = 0;
+	uint8_t change = 0;
+	putImageV2((MAXSCREENX - BIRDWIDTH)/2, 20, BIRDWIDTH, BIRDHEIGHT, images.birdIMG, 0, 0);
 	while (1){
+
+		putImageV2((MAXSCREENX - BIRDWIDTH)/2, 20, BIRDWIDTH, BIRDHEIGHT, images.birdIMG, 0, 0);
+
+		birdFlappingMenu(&imgCounter, &change);
+		imgCounter += 1;
 
 		menuNavigation(MENUINDEX);
 
@@ -704,6 +712,7 @@ void menuInterface(){
 			switch (menu[MENUINDEX].menuSelection){
 				case 0: // play
 					initBackground();
+					updateDifficulty(difficulty.active);
 					gameLoop();
 					return;
 				case 1: // Difficulty
@@ -871,7 +880,7 @@ void updateStats(){
 	stats.score = 0;
 }
 
-int statsMenu(struct pipes *pipes){
+int crashMenu(struct pipe *pipes){
 	menu[CRASHINDEX].changeMenu = 1; // Force the arrow to get drawn
 	while (1){
 
@@ -887,6 +896,8 @@ int statsMenu(struct pipes *pipes){
 				case 1: // Back
 					restartGame(pipes);
 					flags.runOnce = 0;
+					menu[CRASHINDEX].oldSelection = menu[CRASHINDEX].menuSelection;
+					menu[CRASHINDEX].menuSelection = 0;
 					delay(200);
 					return 0;
 				default:
@@ -912,7 +923,9 @@ void gameLoop(){
 				flags.runOnce = 1;
 			}
 
-			if (statsMenu(pipes))
+			drawMenu(CRASHINDEX);
+			if (crashMenu(pipes)) break;
+			else return;
 		}
 
 
@@ -945,8 +958,9 @@ void initDifficulty(){
 	difficulty.end = 100;
 	difficulty.spawnGap = 42;
 	difficulty.gap = 40 /2; // the gap between top and bottom pipe
-	difficulty.active = 0;
+	difficulty.active = 2;
 	difficulty.oldActive = 0;
+	difficulty.speed = 1.5;
 }
 
 /* Background is a seemless image of width MAXSCREENX / 4.
@@ -1019,7 +1033,7 @@ void endOfPipeCheck(struct pipe *pipes){
 void initPipe(struct pipe *pipes){
 
 	for (int i = 0; i < difficulty.pipesAmt; i++){
-		pipes[i].speed = 1.5;
+		pipes[i].speed = difficulty.speed;
 		pipes[i].start = 80; // MAX: MAXSCREENY - GAP || MIN: MINSCREENY + GAP + pipeHeight
 		pipes[i].x = MAXSCREENX - PIPEWIDTH;
 		pipes[i].y = MAXSCREENY - pipes[0].start;
@@ -1045,6 +1059,44 @@ void initBird(){
 	bird.birdVelocity = 0.0;
 }
 
+void updateDifficulty(uint8_t i){
+	switch(i){
+		case 0: // easy
+			difficulty.pipesAmt = 2;
+			difficulty.start = 70;
+			difficulty.end = 90;
+			difficulty.spawnGap = 60;
+			difficulty.gap = 40/2;
+			difficulty.speed = 1;
+			return;
+		case 1: // medium
+			difficulty.pipesAmt = 3;
+			difficulty.start = 60; // lower relm for random num
+			difficulty.end = 100; // higher relm for random num
+			difficulty.spawnGap = 46;
+			difficulty.gap = 40 / 2;
+			difficulty.speed = 1.5;
+			return;
+		case 2: // hard
+			difficulty.pipesAmt = 3;
+			difficulty.start = 40;
+			difficulty.end = 120;
+			difficulty.spawnGap = 46;
+			difficulty.gap = 35/2;
+			difficulty.speed = 1.75;
+			return;
+		default:
+			difficulty.pipesAmt = 3;
+			difficulty.start = 60; // lower relm for random num
+			difficulty.end = 100; // higher relm for random num
+			difficulty.spawnGap = 42;
+			difficulty.gap = 40 / 2;
+			// pipes[i].speed = 1.5
+			return;
+		
+	}
+}
+
 void activatePipes(struct pipe *pipes){
 	for (int i = 0; i < difficulty.pipesAmt; i++) {
 		int currPipe = (i + 1) % difficulty.pipesAmt;
@@ -1056,14 +1108,12 @@ void activatePipes(struct pipe *pipes){
 }
 
 // Function for checking if points ax1, ax2, ay1, ay2 overlap with bx1, bx2, by1, by2
-uint8_t rectsOverlap(uint16_t ax1, uint16_t ax2, uint16_t ay1, uint16_t ay2,
-                  uint16_t bx1, uint16_t bx2, uint16_t by1, uint16_t by2)
+uint8_t rectsOverlap(uint16_t bx1, uint16_t bx2, uint16_t by1, uint16_t by2,
+                     uint16_t px1, uint16_t px2, uint16_t py1, uint16_t py2)
 {
-    if (ax2 <= bx1) return 0;
-    if (bx2 <= ax1) return 0;
+    if (bx2 <= px1 || px2 <= bx1) return 0;
 
-    if (ay2 <= by1) return 0;
-    if (by2 <= ay1) return 0;
+    if (by2 <= py1 || py2 <= by1) return 0;
 
     return 1;
 }
@@ -1080,10 +1130,10 @@ uint8_t checkCollision(struct pipe *pipes){
 	int birdY2 = bird.y + BIRDHEIGHT - 1; // bottom y cords
 
 	int pipeX1 = pipes[i].x; // left x cords of pipes
-	int pipeY1 = pipes[i].y - difficulty.gap + PIPEHEIGHT - 1; // bottom y cords of top pipe
+	int pipeY1 = pipes[i].y - difficulty.gap + PIPEHEIGHT + 2; // bottom y cords of top pipe
 
 	int pipeX2 = pipes[i].x + PIPEWIDTH - 1; // right x cords of pipes
-	int pipeY2 = pipes[i].y + difficulty.gap; // top y cords of bottom pipe
+	int pipeY2 = pipes[i].y + difficulty.gap - 2; // top y cords of bottom pipe
 
 
 	if (birdX1 > pipeX2) stats.score += 1; // once bird passes pipe, increase counter & check collision for next pipe

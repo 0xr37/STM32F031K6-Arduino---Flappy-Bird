@@ -5,7 +5,8 @@
         "stdio.h": "c",
         "serial.h": "c",
         "stddef.h": "c",
-        "display.h": "c"
+        "display.h": "c",
+        "musical_notes.h": "c"
     },
     "workbench.localHistory.enabled": true,
     "git.blame.statusBarItem.enabled": true,

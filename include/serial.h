@@ -5,3 +5,5 @@ void eputchar(char c);
 char egetchar(void);
 void eputs(char *String);
 void printDecimal(int32_t Value);
+int serialInput(void);
+void printOutToTerminal(uint8_t i, int *asciiArt);

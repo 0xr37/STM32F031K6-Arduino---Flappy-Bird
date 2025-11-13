@@ -1,7 +1,4 @@
 /*
-need to add flapping animation:
-if birdVelocity is >= 0 birdImage = flappingUp
-else: birdImage = Normal
 
 Do the main menu, some more small stuff to do
 
@@ -37,6 +34,14 @@ Bigger random on the y position
 #define cornerSIZE 12
 #define cursorWidth 10
 #define cursorHeight 9
+#define GREEN 57383
+#define RED 7936
+#define WHITE 65535
+#define BLACK 0
+#define ORANGE 48932
+#define OPTIONINDEX 2 // menu index for the options menu
+#define DIFFINDEX 1 // menu index for the difficulty menu
+#define MENUINDEX 0 // menu index for the main menu
 
 
 struct pipe{
@@ -64,11 +69,28 @@ struct bird{
 	float birdVelocity;
 };
 
+struct images{
+	const uint16_t *pipeIMG;
+	const uint16_t *backgroundIMG;
+	const uint16_t *pipeStartIMG;
+	const uint16_t *birdIMG;
+};
+
 struct difficulty{
 	int pipesAmt;
 	uint8_t start;
 	uint8_t end;
 	float spawnGap;
+	uint16_t gap;
+	uint8_t active;
+	uint8_t oldActive;
+};
+
+struct flags{
+	int gameOverText;
+	int dayNight;
+	int soundOnOff;
+	int flappingAnim;
 };
 
 struct menu{
@@ -80,6 +102,7 @@ struct menu{
 	int menuHeight; // Height of menu block
 	int baseX; // Base x value of where to use printText, stays the same unless drawing cursor
 	int baseY; // Base y value of where to use printText, changes based on textIncrement * i
+	int cursorGap;
 	int textHeight; // Height of printText() in pixels
 	int textGap; // Gap in pixels between each text drawn by printText()
 	int textIncrement; // The spacing in pixels between any two texts drawn by printText()
@@ -106,39 +129,64 @@ uint8_t anyButtonPressed();
 
 uint8_t enterPressedOnce();
 
+void initPipe(struct pipe *pipes);
+void initBird(void);
+void initBackground();
+void initDifficulty();
+void initDayNight();
+void initMenu();
+void initFlags();
+void initImages();
+
+void menuInterface();
+void optionsMenu();
+void updateOption(int currMenu, int currSelection);
+void menuNavigation(uint8_t i);
+void drawMenu(uint8_t i);
+int getFlagColour(int currMenu, int currSelection);
+
 void gameLoop();
 void gameOverText(struct pipe *pipes, uint16_t *counter);
+void restartGame(struct pipe *pipes, uint8_t *gameCrashed, uint16_t *counter);
+int birdLogic(struct pipe *pipes, uint16_t *counter, uint8_t *gameCrashed);
+
 
 void drawTopPipe(struct pipe *pipes, uint8_t i);
 void drawBottomPipe(struct pipe *pipes, uint8_t i);
 void drawPipe(struct pipe *pipes);
 void endOfPipeCheck(struct pipe *pipes);
-void initPipe(struct pipe *pipes);
-void initBird(void);
-void initBackground();
-void initDifficulty();
 void activatePipes(struct pipe *pipes);
 uint8_t checkCollision(struct pipe *pipes, uint16_t *counter);
+uint8_t rectsOverlap(uint16_t ax1, uint16_t ax2, uint16_t ay1, uint16_t ay2, uint16_t bx1, uint16_t bx2, uint16_t by1, uint16_t by2);
 
 void fillBackground(uint16_t x,uint16_t y,uint16_t width, uint16_t height);
 void putImageV2(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t *Image, uint8_t hOrientation, uint8_t vOrientation);
 void addBoundingBox(uint8_t x, uint16_t y, uint16_t colour, uint8_t thickness, uint8_t sizeOfprintText);
-
 uint16_t getBackgroundPixel(uint16_t screenX, uint16_t screenY);
 void putPipe(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t *Image);
-uint8_t rectsOverlap(uint16_t ax1, uint16_t ax2, uint16_t ay1, uint16_t ay2, uint16_t bx1, uint16_t bx2, uint16_t by1, uint16_t by2);
-
-uint8_t dayNight = 0;
+void drawCrashedBird();
 
 
-struct difficulty difficulty[1];
-struct bird bird[1];
+struct difficulty difficulty;
+struct bird bird;
 struct menu menu[5];
+struct flags flags;
+struct images images;
 
 
-const uint16_t bird1[]=
+const uint16_t birdUp[]=
 {
 	5536,5536,5536,5536,5536,5536,2625,2625,2625,2625,2625,2625,5536,5536,5536,5536,5536,5536,5536,5536,5536,2625,2625,65422,65422,65422,2625,24575,24575,2625,5536,5536,5536,5536,5536,5536,5536,2625,65422,65422,65333,65333,2625,24575,24575,24575,24575,2625,5536,5536,5536,5536,2625,2625,2625,2625,65333,65333,65333,2625,56015,24575,24575,2625,24575,2625,5536,5536,2625,24575,24575,24575,24575,2625,65333,65333,2625,56015,24575,24575,2625,24575,2625,5536,5536,2625,24575,24575,24575,24575,24575,2625,65333,65333,2625,56015,24575,24575,24575,2625,5536,5536,2625,65422,24575,24575,24575,65422,2625,65333,65333,65333,2625,2625,2625,2625,2625,2625,5536,5536,2625,65422,65422,65422,2625,65333,65333,65333,2625,7937,7937,7937,7937,7937,7937,2625,5536,5536,2625,2625,2625,7212,7212,7212,2625,7937,2625,2625,2625,2625,2625,2625,5536,5536,5536,2625,7212,7212,7212,7212,7212,7212,2625,7937,7937,7937,7937,7937,2625,5536,5536,5536,5536,2625,2625,7212,7212,7212,7212,7212,2625,2625,2625,2625,2625,5536,5536,5536,5536,5536,5536,5536,2625,2625,2625,2625,2625,5536,5536,5536,5536,5536,5536,5536,
+};
+
+const uint16_t birdMid[]=
+{
+	5536,5536,5536,5536,5536,5536,2625,2625,2625,2625,2625,2625,5536,5536,5536,5536,5536,5536,5536,5536,5536,2625,2625,65422,65422,65422,2625,24575,24575,2625,5536,5536,5536,5536,5536,5536,5536,2625,65422,65422,65333,65333,2625,24575,24575,24575,24575,2625,5536,5536,5536,5536,5536,2625,65422,65333,65333,65333,65333,2625,56015,24575,24575,2625,24575,2625,5536,5536,5536,2625,65333,65333,65333,65333,65333,65333,2625,56015,24575,24575,2625,24575,2625,5536,5536,5536,2625,2625,2625,2625,2625,65333,65333,65333,2625,56015,24575,24575,24575,2625,5536,5536,2625,24575,24575,24575,24575,24575,2625,65333,65333,65333,2625,2625,2625,2625,2625,2625,5536,2625,65422,24575,24575,24575,65422,2625,65333,65333,2625,7937,7937,7937,7937,7937,7937,2625,5536,2625,2625,2625,2625,2625,7212,7212,2625,7937,2625,2625,2625,2625,2625,2625,5536,5536,5536,2625,7212,7212,7212,7212,7212,7212,2625,7937,7937,7937,7937,7937,2625,5536,5536,5536,5536,2625,2625,7212,7212,7212,7212,7212,2625,2625,2625,2625,2625,5536,5536,5536,5536,5536,5536,5536,2625,2625,2625,2625,2625,5536,5536,5536,5536,5536,5536,5536,
+};
+
+const uint16_t birdDown[]=
+{
+	5536,5536,5536,5536,5536,5536,2625,2625,2625,2625,2625,2625,5536,5536,5536,5536,5536,5536,5536,5536,5536,2625,2625,65422,65422,65422,2625,24575,24575,2625,5536,5536,5536,5536,5536,5536,5536,2625,65422,65422,65333,65333,2625,24575,24575,24575,24575,2625,5536,5536,5536,5536,5536,2625,65422,65333,65333,65333,65333,2625,56015,24575,24575,2625,24575,2625,5536,5536,5536,2625,65333,65333,65333,65333,65333,65333,2625,56015,24575,24575,2625,24575,2625,5536,5536,5536,2625,65333,65333,65333,65333,65333,65333,65333,2625,56015,24575,24575,24575,2625,5536,5536,5536,2625,2625,2625,2625,2625,65333,65333,65333,65333,2625,2625,2625,2625,2625,2625,5536,2625,65422,24575,24575,24575,65422,2625,65333,65333,2625,7937,7937,7937,7937,7937,7937,2625,2625,24575,24575,24575,24575,2625,7212,7212,2625,7937,2625,2625,2625,2625,2625,2625,5536,2625,24575,24575,65422,2625,7212,7212,7212,7212,2625,7937,7937,7937,7937,7937,2625,5536,5536,2625,2625,2625,2625,7212,7212,7212,7212,7212,2625,2625,2625,2625,2625,5536,5536,5536,5536,5536,5536,5536,2625,2625,2625,2625,2625,5536,5536,5536,5536,5536,5536,5536,
 };
 
 const uint16_t pipeStart[]=
@@ -182,202 +230,12 @@ const uint16_t corner[]=
 };
 
 const char *menuText[] = {"Play", "Difficulty", "Options", "Info"};
-const char *optionsText[] = {"Game over text", "Day/Night", "Sound", "Flapping anim", "Go Back"};
+const char *optionsText[] = {"Game over text", "Night Theme", "Sound", "Flapping anim", "Go Back"};
+const char *difficultyText[] = {"Easy", "Medium", "Hard", "Go Back"};
 
 uint16_t skyColour = 2510;
 uint16_t soilColour = 12562;
 
-const uint16_t *pipeIMG = pipeEnd;
-const uint16_t *backgroundIMG = background;
-const uint16_t *pipeStartIMG = pipeStart;
-
-// Function for initializing menu settings
-void initMenu(){
-	// 0 - Initial menu
-	menu[0].menuSelection = 1;
-	menu[0].oldSelection = 1;
-	menu[0].menuX = 10;
-	menu[0].menuY = 50;
-	menu[0].menuWidth = 108;
-	menu[0].menuHeight = 100;
-	menu[0].baseX = menu[0].menuX + cornerSIZE;
-	menu[0].baseY = menu[0].menuY + cornerSIZE;
-	menu[0].textHeight = 7;
-	menu[0].textGap = 4;
-	menu[0].textIncrement = menu[0].textHeight + menu[0].textGap; // 11
-	menu[0].textUsed = menuText;
-	menu[0].sizeOfText = sizeof(menuText)/sizeof(menuText[0]);
-
-	// 1 - Difficulty Menu
-
-	// 2- Options
-	menu[2].menuSelection = 1;
-	menu[2].oldSelection = 1;
-	menu[2].menuX = 0;
-	menu[2].menuY = 0;
-	menu[2].menuWidth = MAXSCREENX;
-	menu[2].menuHeight = MAXSCREENY;
-	menu[2].baseX = menu[2].menuX + cornerSIZE;
-	menu[2].baseY = menu[2].menuY + cornerSIZE;
-	menu[2].textHeight = 7;
-	menu[2].textGap = 4;
-	menu[2].textIncrement = menu[2].textHeight + menu[2].textGap;
-	menu[2].textGap = 4;
-	menu[2].textUsed = optionsText;
-	menu[2].sizeOfText = sizeof(optionsText)/sizeof(optionsText[0]);
-
-	// 3 - Info
-
-	// 4 - Game Over
-}
-
-// Function for drawing the menu sprites & text
-void drawMenu(uint8_t i){
-
-	// Create menu block
-	fillRectangle(menu[i].menuX, menu[i].menuY, menu[i].menuWidth, menu[i].menuHeight, 0); // menu size of colour 0 (black)
-	fillRectangle(menu[i].menuX+2, menu[i].menuY+2, menu[i].menuWidth-4, menu[i].menuHeight-4, 20083); // fill inside of menu size with gray
-	fillRectangle(menu[i].menuX+3, menu[i].menuY+3, menu[i].menuWidth-6, menu[i].menuHeight-6, 0); // fill insize of gray with black, this makes the gray look like a border
-
-	// Put corner image in each corner
-	putImageV2(menu[i].menuX, menu[i].menuY, cornerSIZE, cornerSIZE, corner, 0, 0); // top left corner
-    putImageV2(menu[i].menuX + menu[i].menuWidth - cornerSIZE, menu[i].menuY, cornerSIZE, cornerSIZE, corner, 1, 0);// top right corner
-    putImageV2(menu[i].menuX, menu[i].menuY + menu[i].menuHeight - cornerSIZE, cornerSIZE, cornerSIZE, corner, 0, 1); // bottom left corner
-    putImageV2(menu[i].menuX + menu[i].menuWidth - cornerSIZE, menu[i].menuY + menu[i].menuHeight - cornerSIZE, cornerSIZE, cornerSIZE, corner, 1, 1); // bottom right corner
-
-	// Draw each string from menuText array 
-	for (int j = 0; j<menu[i].sizeOfText; j++){
-		printText(menu[i].textUsed[j], menu[i].baseX, menu[i].baseY + (menu[i].textIncrement * j), 65535, 0); // baseY+(textIncrement*i)
-	}
-}
-void menuNavigation(uint8_t i){
-
-	if (menu[i].changeMenu){
-
-		uint16_t oldY = menu[i].baseY + menu[i].textIncrement * menu[i].oldSelection;
-		uint16_t newY = menu[i].baseY + menu[i].textIncrement * menu[i].menuSelection;
-		uint16_t textWidth = menu[i].menuX + menu[i].menuWidth - cornerSIZE/2 - menu[i].baseX;
-
-		// Draw over the old selection & redraw text
-		//fillRectangle(menu[i].baseX, oldY-1, textWidth, menu[i].textHeight+2, 0);
-		fillRectangle(menu[i].baseX, oldY-1, textWidth, menu[i].textHeight+2, 0);
-		printText(menu[i].textUsed[menu[i].oldSelection], menu[i].baseX, oldY, 65535, 0);
-
-		// Keep track of the old selection for the next time the code block runs
-		menu[i].oldSelection = menu[i].menuSelection; 
-
-		// Draw over new selection, draw cursor then draw new text with shifted x position
-		fillRectangle(menu[i].baseX, newY, textWidth, menu[i].textHeight, 0);
-		putImage(menu[i].baseX, newY-1, cursorWidth, cursorHeight, cursor, 0, 0);
-		printText(menu[i].textUsed[menu[i].menuSelection], menu[i].baseX + cursorWidth + 2, newY, 65535, 0);
-
-		menu[i].changeMenu = 0;
-	}
-
-
-	if (upPressed()){
-		if (menu[i].menuSelection <= 0) menu[i].menuSelection = menu[i].sizeOfText - 1; // If out of bounds, reset to max size
-		else menu[i].menuSelection--;
-		menu[i].changeMenu = 1;
-		delay(200);
-	}
-	if (downPressed()){
-		if (menu[i].menuSelection < menu[i].sizeOfText - 1) menu[i].menuSelection++; // If out of bounds, reset to min size
-		else menu[i].menuSelection = 0;
-		menu[i].changeMenu = 1;
-		delay(200);
-	}	
-}
-
-void optionsMenu(){
-	menu[2].changeMenu = 1;
-	while (1){
-
-		menuNavigation(2);
-
-		if (enterPressed()){
-			switch (menu[2].menuSelection){
-				case 0: // play
-					initBackground();
-					gameLoop();
-					return;
-				case 1: // Day Night
-					/*Clear current text
-					Call menuInterface and pass number 1, which indicates difficulty menu
-					instead of menu[0] I have menu[i], 
-					*/
-					dayNight ^= 1;
-					delay(100);
-					return;
-				case 2: // Sound
-					// drawMenu(2);
-					// menuNavigation(2);
-					return;
-				case 3: // Flapping anim
-					return;
-				case 4: // Go back
-					return;
-				default:
-					break;
-			}
-		}
-
-		delay(50);
-	}
-}
-
-// Function for the main menu 
-void menuInterface(){
-	menu[0].changeMenu = 1;
-	while (1){
-
-		menuNavigation(0);
-
-		if (enterPressed()){
-			switch (menu[0].menuSelection){
-				case 0: // play
-					initBackground();
-					gameLoop();
-					return;
-				case 1: // Difficulty
-					/*Clear current text
-					Call menuInterface and pass number 1, which indicates difficulty menu
-					instead of menu[0] I have menu[i], 
-					*/
-					return;
-				case 2: // Options
-					drawMenu(2);
-					optionsMenu();
-					delay(100);
-					return;
-				case 3: // Info
-					return;
-				
-				default:
-					break;
-			}
-		}
-
-		delay(50);
-	}
-}
-
-void initDayNight(){
-	if (dayNight){
-		pipeIMG = pipeEndNight;
-		backgroundIMG = backgroundNight;
-		pipeStartIMG = pipeStartNight;
-		skyColour = 33336;
-		soilColour = 43273;
-	}
-	else{
-		pipeIMG = pipeEnd;
-		backgroundIMG = background;
-		pipeStartIMG = pipeStart;
-		skyColour = 2510;
-		soilColour = 12562;
-	}
-}
 
 int main()
 {
@@ -385,10 +243,10 @@ int main()
 	initSysTick();
 	setupIO();
 	initSerial();
-
-	dayNight = 0;
+	initImages();
 	
 	initBackground();
+	initFlags();
 
 	while (1){
 		if(anyButtonPressed()){
@@ -411,11 +269,321 @@ int main()
 	return 0;
 }
 
+
+void initImages(){
+	images.pipeIMG = pipeEnd;
+	images.backgroundIMG = background;
+	images.pipeStartIMG = pipeStart;
+	images.birdIMG = birdUp;
+}
+
+void initFlags(){
+	flags.gameOverText = 1;
+	flags.dayNight = 0;
+	flags.soundOnOff = 1;
+	flags.flappingAnim = 1;
+}
+
+// Function for initializing menu settings
+void initMenu(){
+	// 0 - Initial menu
+	menu[MENUINDEX].menuSelection = 0;
+	menu[MENUINDEX].oldSelection = 0;
+	menu[MENUINDEX].menuX = 10;
+	menu[MENUINDEX].menuY = 50;
+	menu[MENUINDEX].menuWidth = 108;
+	menu[MENUINDEX].menuHeight = 100;
+	menu[MENUINDEX].baseX = menu[MENUINDEX].menuX + cornerSIZE;
+	menu[MENUINDEX].baseY = menu[MENUINDEX].menuY + cornerSIZE;
+	menu[MENUINDEX].cursorGap = 5;
+	menu[MENUINDEX].textHeight = 7;
+	menu[MENUINDEX].textGap = 4;
+	menu[MENUINDEX].textIncrement = menu[MENUINDEX].textHeight + menu[MENUINDEX].textGap; // 11
+	menu[MENUINDEX].textUsed = menuText;
+	menu[MENUINDEX].sizeOfText = sizeof(menuText)/sizeof(menuText[0]);
+
+	// 1 - Difficulty Menu
+	menu[DIFFINDEX].menuSelection = 0;
+	menu[DIFFINDEX].oldSelection = 0;
+	menu[DIFFINDEX].menuX = 10;
+	menu[DIFFINDEX].menuY = 50;
+	menu[DIFFINDEX].menuWidth = 108;
+	menu[DIFFINDEX].menuHeight = 100;
+	menu[DIFFINDEX].baseX = menu[MENUINDEX].menuX + cornerSIZE;
+	menu[DIFFINDEX].baseY = menu[MENUINDEX].menuY + cornerSIZE;
+	menu[DIFFINDEX].cursorGap = 5;
+	menu[DIFFINDEX].textHeight = 7;
+	menu[DIFFINDEX].textGap = 4;
+	menu[DIFFINDEX].textIncrement = menu[MENUINDEX].textHeight + menu[MENUINDEX].textGap; // 11
+	menu[DIFFINDEX].textUsed = difficultyText;
+	menu[DIFFINDEX].sizeOfText = sizeof(difficultyText)/sizeof(difficultyText[0]);
+
+	// 2- Options
+	menu[OPTIONINDEX].menuSelection = 0;
+	menu[OPTIONINDEX].oldSelection = 0;
+	menu[OPTIONINDEX].menuX = 0;
+	menu[OPTIONINDEX].menuY = 0;
+	menu[OPTIONINDEX].menuWidth = MAXSCREENX;
+	menu[OPTIONINDEX].menuHeight = MAXSCREENY;
+	menu[OPTIONINDEX].baseX = menu[OPTIONINDEX].menuX + cornerSIZE;
+	menu[OPTIONINDEX].baseY = menu[OPTIONINDEX].menuY + cornerSIZE;
+	menu[OPTIONINDEX].cursorGap = 5;
+	menu[OPTIONINDEX].textHeight = 7;
+	menu[OPTIONINDEX].textGap = 4;
+	menu[OPTIONINDEX].textIncrement = menu[OPTIONINDEX].textHeight + menu[OPTIONINDEX].textGap;
+	menu[OPTIONINDEX].textGap = 4;
+	menu[OPTIONINDEX].textUsed = optionsText;
+	menu[OPTIONINDEX].sizeOfText = sizeof(optionsText)/sizeof(optionsText[0]);
+
+	// 3 - Info
+
+	// 4 - Game Over
+}
+
+
+int getFlagColour(int currMenu, int currSelection){
+
+	if (currMenu == 2 && (menu[currMenu].oldSelection >= menu[currMenu].sizeOfText)){
+
+		switch (currSelection){
+			case 0: return flags.gameOverText ? GREEN : RED;
+			case 1: return flags.dayNight ? GREEN : RED;
+			case 2: return flags.soundOnOff ? GREEN : RED;
+			case 3: return flags.flappingAnim ? GREEN : RED;
+			default: return WHITE;
+		}
+	}
+	else if (currMenu == 1 && (menu[currMenu].oldSelection >= menu[currMenu].sizeOfText)){
+		switch (currSelection){
+			case 0: return GREEN;
+			case 1: return ORANGE;
+			case 2: return RED;
+			default: return WHITE;
+		}
+	}
+
+	return WHITE;
+}
+
+
+// Function for drawing the menu sprites & text
+void drawMenu(uint8_t i){
+
+	uint16_t colour = WHITE;
+	
+	// Create menu block
+	fillRectangle(menu[i].menuX, menu[i].menuY, menu[i].menuWidth, menu[i].menuHeight, 0); // menu size of colour 0 (black)
+	fillRectangle(menu[i].menuX+2, menu[i].menuY+2, menu[i].menuWidth-4, menu[i].menuHeight-4, 20083); // fill inside of menu size with gray
+	fillRectangle(menu[i].menuX+3, menu[i].menuY+3, menu[i].menuWidth-6, menu[i].menuHeight-6, 0); // fill insize of gray with black, this makes the gray look like a border
+
+	// Put corner image in each corner
+	putImageV2(menu[i].menuX, menu[i].menuY, cornerSIZE, cornerSIZE, corner, 0, 0); // top left corner
+    putImageV2(menu[i].menuX + menu[i].menuWidth - cornerSIZE, menu[i].menuY, cornerSIZE, cornerSIZE, corner, 1, 0);// top right corner
+    putImageV2(menu[i].menuX, menu[i].menuY + menu[i].menuHeight - cornerSIZE, cornerSIZE, cornerSIZE, corner, 0, 1); // bottom left corner
+    putImageV2(menu[i].menuX + menu[i].menuWidth - cornerSIZE, menu[i].menuY + menu[i].menuHeight - cornerSIZE, cornerSIZE, cornerSIZE, corner, 1, 1); // bottom right corner
+
+	// Draw each string from menuText array 
+	for (int j = 0; j<menu[i].sizeOfText; j++){
+		uint16_t colour = getFlagColour(i, j);
+		printText(menu[i].textUsed[j], menu[i].baseX, menu[i].baseY + (menu[i].textIncrement * j), colour, 0); // baseY+(textIncrement*i)
+	}
+}
+
+// For navigation around the menu
+void menuNavigation(uint8_t i){
+
+	if (menu[i].changeMenu){
+
+		uint16_t oldY = menu[i].baseY + menu[i].textIncrement * menu[i].oldSelection;
+		uint16_t newY = menu[i].baseY + menu[i].textIncrement * menu[i].menuSelection;
+		// uint16_t fillWidth = menu[i].menuX + menu[i].menuWidth - cornerSIZE/2 - menu[i].baseX;
+		uint16_t textWidth = menu[i].menuWidth - 3 - cornerSIZE;
+		// menu[i].baseX = menu[i].baseX - menu[i].cursorGap;
+
+		uint16_t colour = 65535;
+
+		// Pick colour for each option
+		colour = getFlagColour(i, menu[i].oldSelection);
+
+		// Draw over the old selection & redraw text
+		//fillRectangle(menu[i].baseX, oldY-1, textWidth, menu[i].textHeight+2, 0);
+		fillRectangle(menu[i].baseX - menu[i].cursorGap, oldY-1, textWidth, menu[i].textHeight+2, 0);
+		printText(menu[i].textUsed[menu[i].oldSelection], menu[i].baseX, oldY, colour, 0);
+
+		// Keep track of the old selection for the next time the code block runs
+		menu[i].oldSelection = menu[i].menuSelection; 
+
+		// Get new colour for each option
+		colour = getFlagColour(i, menu[i].oldSelection);
+
+		// Draw over new selection, draw cursor then draw new text with shifted x position
+		fillRectangle(menu[i].baseX, newY, textWidth, menu[i].textHeight, 0);
+		putImage(menu[i].baseX - menu[i].cursorGap, newY-1, cursorWidth, cursorHeight, cursor, 0, 0);
+		printText(menu[i].textUsed[menu[i].menuSelection], menu[i].baseX + cursorWidth + 2, newY, colour, 0);
+
+		menu[i].changeMenu = 0;
+	}
+
+
+	if (upPressed()){
+		if (menu[i].menuSelection <= 0) menu[i].menuSelection = menu[i].sizeOfText - 1; // If out of bounds, reset to max size
+		else menu[i].menuSelection--;
+		menu[i].changeMenu = 1;
+		delay(200);
+	}
+	if (downPressed()){
+		if (menu[i].menuSelection < menu[i].sizeOfText - 1) menu[i].menuSelection++; // If out of bounds, reset to min size
+		else menu[i].menuSelection = 0;
+		menu[i].changeMenu = 1;
+		delay(200);
+	}	
+}
+
+// Function for redrawing a selected text with a different colour, i.e. turn off sound, sound colour green -> red; redraw sound text
+void updateOption(int currMenu, int selection){
+	uint16_t colour = getFlagColour(currMenu, selection);
+	printText(menu[currMenu].textUsed[menu[currMenu].menuSelection], menu[currMenu].baseX + cursorWidth + 2, menu[currMenu].baseY + menu[currMenu].textIncrement * selection, colour, 0);
+}
+
+void difficultyMenu(){
+	menu[DIFFINDEX].changeMenu = 1;
+	updateOption(DIFFINDEX, difficulty.active);
+	
+	while(1){
+		menuNavigation(DIFFINDEX);
+
+		if (enterPressedOnce() || rightPressed() || leftPressed()){
+			switch (menu[DIFFINDEX].menuSelection){
+				case 0: // Easy
+					// flags.gameOverText ^= 1;
+					// updateOption(OPTIONINDEX, 0);
+					delay(200);
+					continue;
+				case 1: // Medium
+					// flags.dayNight ^= 1;
+					// updateOption(OPTIONINDEX, 1);
+					delay(200);
+					continue;
+				case 2: // Hard
+
+					continue;
+				case 3: // Go back
+					return;
+				default:
+					break;
+			}
+		}
+
+		delay(50);
+	}
+}
+
+void optionsMenu(){
+	menu[OPTIONINDEX].changeMenu = 1; // Force the arrow to get drawn
+	while (1){
+
+		menuNavigation(OPTIONINDEX);
+
+		if (enterPressedOnce() || rightPressed() || leftPressed()){
+			switch (menu[OPTIONINDEX].menuSelection){
+				case 0: // Game over text
+					flags.gameOverText ^= 1;
+					updateOption(OPTIONINDEX, 0);
+					delay(200);
+					continue;
+				case 1: // Day Night
+					flags.dayNight ^= 1;
+					updateOption(OPTIONINDEX, 1);
+					delay(200);
+					continue;
+				case 2: // Sound
+					// drawMenu(2);
+					// menuNavigation(2);
+					continue;
+				case 3: // Flapping anim
+					flags.flappingAnim ^= 1;
+					images.birdIMG = birdUp;
+					updateOption(OPTIONINDEX, 3);
+					delay(200);
+					continue;;
+				case 4: // Go back
+					return;
+				default:
+					break;
+			}
+		}
+
+		delay(50);
+	}
+}
+
+
+
+// Function for the main menu 
+void menuInterface(){
+	menu[MENUINDEX].changeMenu = 1;
+	while (1){
+
+		menuNavigation(MENUINDEX);
+
+		if (enterPressed()){
+			switch (menu[MENUINDEX].menuSelection){
+				case 0: // play
+					initBackground();
+					gameLoop();
+					return;
+				case 1: // Difficulty
+					/*Clear current text
+					Call menuInterface and pass number 1, which indicates difficulty menu
+					instead of menu[MENUINDEX] I have menu[i], 
+					*/
+					drawMenu(1);
+					difficultyMenu();
+					delay(100);
+					return;
+				case 2: // Options
+					drawMenu(2);
+					optionsMenu();
+					delay(100);
+					return;
+				case 3: // Info
+					return;
+				
+				default:
+					break;
+			}
+		}
+
+		delay(50);
+	}
+}
+
+void initDayNight(){
+	if (flags.dayNight){
+		images.pipeIMG = pipeEndNight;
+		images.backgroundIMG = backgroundNight;
+		images.pipeStartIMG = pipeStartNight;
+		skyColour = 33336;
+		soilColour = 43273;
+	}
+	else{
+		images.pipeIMG = pipeEnd;
+		images.backgroundIMG = background;
+		images.pipeStartIMG = pipeStart;
+		skyColour = 2510;
+		soilColour = 12562;
+	}
+}
+
 // Scrolling text for when bird crashes
 void gameOverText(struct pipe *pipes, uint16_t *counter){
 
+	if (!flags.gameOverText){
+		return;
+	}
+
 	int i;
-	for (i = 0; i<difficulty[0].pipesAmt; i++){
+	for (i = 0; i<difficulty.pipesAmt; i++){
 		pipes[i].speed = 0; // Stop pipes from moving
 	}
 
@@ -430,7 +598,7 @@ void gameOverText(struct pipe *pipes, uint16_t *counter){
 		fillBackground(x, oldy+14-speedOfText, widthOfText, 14);
 		oldy = i;
 
-		putImageV2(bird[0].x, bird[0].y, BIRDWIDTH, BIRDHEIGHT, bird1, 0, 0);
+		putImageV2(bird.x, bird.y, BIRDWIDTH, BIRDHEIGHT, images.birdIMG, 0, 0);
 		drawPipe(pipes);
 		printNumber(*counter, 10, 10, 65535, 0);
 		addBoundingBox(10, 10, 0, 2, 1);
@@ -438,7 +606,7 @@ void gameOverText(struct pipe *pipes, uint16_t *counter){
 		// serves as a speed up option, rather than waiting for text to stop scrolling, press enter to get back into game
 		if (enterPressedOnce()){
 			fillBackground(x, i, widthOfText, 14);
-			putImageV2(bird[0].x, bird[0].y, BIRDWIDTH, BIRDHEIGHT, bird1, 0, 0);
+			putImageV2(bird.x, bird.y, BIRDWIDTH, BIRDHEIGHT, images.birdIMG, 0, 0);
 			drawPipe(pipes);
 			printNumber(*counter, 10, 10, 65535, 0);
 			addBoundingBox(10, 10, 0, 2, 1);
@@ -452,7 +620,7 @@ void gameOverText(struct pipe *pipes, uint16_t *counter){
 	}
 	// need to re-render everything once more after for loop
 	fillBackground(x, oldy+14-speedOfText, widthOfText, 14);
-	putImageV2(bird[0].x, bird[0].y, BIRDWIDTH, BIRDHEIGHT, bird1, 0, 0);
+	putImageV2(bird.x, bird.y, BIRDWIDTH, BIRDHEIGHT, images.birdIMG, 0, 0);
 	drawPipe(pipes);
 	printNumber(*counter, 10, 10, 65535, 0);
 	addBoundingBox(10, 10, 0, 2, 1);
@@ -462,25 +630,32 @@ void gameOverText(struct pipe *pipes, uint16_t *counter){
 int birdLogic(struct pipe *pipes, uint16_t *counter, uint8_t *gameCrashed){
 
 	if(enterPressedOnce()){
-		bird[0].birdVelocity = bird[0].jumpStrength;
+		bird.birdVelocity = bird.jumpStrength;
 	}
 
-	bird[0].birdVelocity = bird[0].birdVelocity + bird[0].gravity;
+	bird.birdVelocity = bird.birdVelocity + bird.gravity;
 
-	bird[0].y = bird[0].y - bird[0].birdVelocity;
+	bird.y = bird.y - bird.birdVelocity;
+
+	if (flags.flappingAnim){
+		if (bird.birdVelocity < -1) images.birdIMG = birdDown;
+		else if (bird.birdVelocity >= -1.5 && bird.birdVelocity < 0) images.birdIMG = birdMid;
+		else images.birdIMG = birdUp;
+	}
 
 	if (checkCollision(pipes, counter)){
-		fillBackground(bird[0].oldx,bird[0].oldy,BIRDWIDTH,BIRDHEIGHT); // it gets re-rendered in the gameOver function
+		// Gets re-rendered in the gameOver function, but if gameOver flag is off, no need to remove bird off screen
+		if (flags.gameOverText) fillBackground(bird.oldx,bird.oldy,BIRDWIDTH,BIRDHEIGHT);
 		*gameCrashed = 1;
 		return 1;
 	}
 
-	if ((bird[0].y <= MAXSCREENY-BIRDHEIGHT-1) && (bird[0].y >= 1)){
-		fillBackground(bird[0].oldx,bird[0].oldy,BIRDWIDTH,BIRDHEIGHT); // x, y, width, height
-		bird[0].oldx = bird[0].x;
-		bird[0].oldy = bird[0].y;	
+	if ((bird.y <= MAXSCREENY-BIRDHEIGHT-1) && (bird.y >= 1)){
+		fillBackground(bird.oldx,bird.oldy,BIRDWIDTH,BIRDHEIGHT); // x, y, width, height
+		bird.oldx = bird.x;
+		bird.oldy = bird.y;	
 
-		putImageV2(bird[0].x, bird[0].y, BIRDWIDTH, BIRDHEIGHT, bird1, 0, 0);
+		putImageV2(bird.x, bird.y, BIRDWIDTH, BIRDHEIGHT, images.birdIMG, 0, 0);
 		
 	}
 	else{
@@ -491,15 +666,15 @@ int birdLogic(struct pipe *pipes, uint16_t *counter, uint8_t *gameCrashed){
 }
 
 void drawCrashedBird(){
-	if (bird[0].y >= MAXSCREENY - BIRDHEIGHT){
+	if (bird.y >= MAXSCREENY - BIRDHEIGHT){
 		delay(50);
-		fillBackground(bird[0].oldx, bird[0].oldy, BIRDWIDTH, BIRDHEIGHT); // x, y, width, height, colour
-		putImageV2(bird[0].x, MAXSCREENY - BIRDHEIGHT, BIRDWIDTH, BIRDHEIGHT, bird1, 0, 0);
+		fillBackground(bird.oldx, bird.oldy, BIRDWIDTH, BIRDHEIGHT); // x, y, width, height, colour
+		putImageV2(bird.x, MAXSCREENY - BIRDHEIGHT, BIRDWIDTH, BIRDHEIGHT, images.birdIMG, 0, 0);
 	}
-	else if (bird[0].y <= MINSCREENY){
+	else if (bird.y <= MINSCREENY){
 		delay(50);
-		fillBackground(bird[0].oldx, bird[0].oldy, BIRDWIDTH, BIRDHEIGHT); // x, y, width, height, colour
-		putImageV2(bird[0].x, 0, BIRDWIDTH, BIRDHEIGHT, bird1, 0, 0);
+		fillBackground(bird.oldx, bird.oldy, BIRDWIDTH, BIRDHEIGHT); // x, y, width, height, colour
+		putImageV2(bird.x, 0, BIRDWIDTH, BIRDHEIGHT, images.birdIMG, 0, 0);
 	}
 }
 
@@ -515,7 +690,7 @@ void restartGame(struct pipe *pipes, uint8_t *gameCrashed, uint16_t *counter){
 
 // Main game loop
 void gameLoop(){
-	struct pipe pipes[difficulty[0].pipesAmt];
+	struct pipe pipes[difficulty.pipesAmt];
 	initPipe(pipes);
 	initBird();
 
@@ -552,26 +727,29 @@ void gameLoop(){
 			endOfPipeCheck(pipes);
 			activatePipes(pipes);
 
-			if (birdLogic(pipes, &counter, &gameCrashed)) continue;
-
 			printNumber(counter, 10, 10, 65535, 0);
 			addBoundingBox(10, 10, 0, 2, 1);
+
+			if (birdLogic(pipes, &counter, &gameCrashed)) continue;
+
 		}
 		else{
 			drawCrashedBird();
 		}
 		
-
 		delay(50);
 	}
 }
 
 // Initialize map difficulty
 void initDifficulty(){
-	difficulty[0].pipesAmt = 3;
-	difficulty[0].start = 60;
-	difficulty[0].end = 100;
-	difficulty[0].spawnGap = 42;
+	difficulty.pipesAmt = 3;
+	difficulty.start = 60;
+	difficulty.end = 100;
+	difficulty.spawnGap = 42;
+	difficulty.gap = 40 /2; // the gap between top and bottom pipe
+	difficulty.active = 0;
+	difficulty.oldActive = 0;
 }
 
 /* Background is a seemless image of width MAXSCREENX / 4.
@@ -579,7 +757,7 @@ Render 4 parts as there isn't enough space in rom to store full image,
 then render the sky & soil */
 void initBackground(){
 	for (uint8_t i = 0; i < bWidth*4; i += bWidth){
-		putImageV2(i, bStart, bWidth, bHeight, backgroundIMG, 0, 0);
+		putImageV2(i, bStart, bWidth, bHeight, images.backgroundIMG, 0, 0);
 	}
 	
 	fillRectangle(0, 0, MAXSCREENX, bStart, skyColour); // render sky
@@ -590,36 +768,36 @@ void initBackground(){
 void drawTopPipe(struct pipe *pipes, uint8_t i){
 
 	// only fill the last 3 pixels rather than the whole image
-	fillBackground(pipes[i].oldx + PIPEWIDTH - FILLSTART, MINSCREENY, FILLEND, pipes[i].oldy - pipes[i].gap + PIPEHEIGHT);
+	fillBackground(pipes[i].oldx + PIPEWIDTH - FILLSTART, MINSCREENY, FILLEND, pipes[i].oldy - difficulty.gap + PIPEHEIGHT);
 
 	pipes[i].oldx = pipes[i].x;
 	pipes[i].oldy = pipes[i].y;
 	pipes[i].x -= pipes[i].speed;
 
-	putImageV2(pipes[i].x, pipes[i].y - pipes[i].gap, PIPEWIDTH, PIPEHEIGHT, pipeStartIMG, 0, 0);
+	putImageV2(pipes[i].x, pipes[i].y - difficulty.gap, PIPEWIDTH, PIPEHEIGHT, images.pipeStartIMG, 0, 0);
 	
-	uint8_t start = pipes[i].y - pipes[i].gap;
+	uint8_t start = pipes[i].y - difficulty.gap;
 
-	putPipe(pipes[i].x, MINSCREENX, PIPEWIDTH, start, pipeIMG);
+	putPipe(pipes[i].x, MINSCREENX, PIPEWIDTH, start, images.pipeIMG);
 }
 
 // Function for drawing bottomPipe
 void drawBottomPipe(struct pipe *pipes, uint8_t i){
-	fillBackground(pipes[i].oldx + PIPEWIDTH - FILLSTART, pipes[i].oldy + pipes[i].gap, FILLEND, MAXSCREENY - (pipes[i].oldy + pipes[i].gap));
+	fillBackground(pipes[i].oldx + PIPEWIDTH - FILLSTART, pipes[i].oldy + difficulty.gap, FILLEND, MAXSCREENY - (pipes[i].oldy + difficulty.gap));
 
 	pipes[i].oldx = pipes[i].x;
 	pipes[i].oldy = pipes[i].y;
 	pipes[i].x -= pipes[i].speed;
-	putImageV2(pipes[i].x, pipes[i].y + pipes[i].gap, PIPEWIDTH, PIPEHEIGHT, pipeStartIMG, 0, 0);
+	putImageV2(pipes[i].x, pipes[i].y + difficulty.gap, PIPEWIDTH, PIPEHEIGHT, images.pipeStartIMG, 0, 0);
 	
-	uint8_t start = pipes[i].y + PIPEHEIGHT + pipes[i].gap;
+	uint8_t start = pipes[i].y + PIPEHEIGHT + difficulty.gap;
 
-	putPipe(pipes[i].x, start, PIPEWIDTH, MAXSCREENY - start, pipeIMG);
+	putPipe(pipes[i].x, start, PIPEWIDTH, MAXSCREENY - start, images.pipeIMG);
 }
 
 // Function for drawing the top & bottom pipes
 void drawPipe(struct pipe *pipes){
-	for (uint8_t i = 0; i < difficulty[0].pipesAmt; i++){
+	for (uint8_t i = 0; i < difficulty.pipesAmt; i++){
 		if (pipes[i].active){
 			drawBottomPipe(pipes, i);
 			drawTopPipe(pipes, i);
@@ -629,7 +807,7 @@ void drawPipe(struct pipe *pipes){
 
 // Function for removing the pipe once the pipe is at the end of the screen
 void endOfPipeCheck(struct pipe *pipes){
-	for (int i = 0; i < difficulty[0].pipesAmt; i++){
+	for (int i = 0; i < difficulty.pipesAmt; i++){
 		if (pipes[i].active){
 			if (pipes[i].x < 1){
 				pipes[i].x = MAXSCREENX - PIPEWIDTH;
@@ -643,7 +821,7 @@ void endOfPipeCheck(struct pipe *pipes){
 // Initialize pipe settings
 void initPipe(struct pipe *pipes){
 
-	for (int i = 0; i < difficulty[0].pipesAmt; i++){
+	for (int i = 0; i < difficulty.pipesAmt; i++){
 		pipes[i].speed = 1.5;
 		pipes[i].start = 80; // MAX: MAXSCREENY - GAP || MIN: MINSCREENY + GAP + pipeHeight
 		pipes[i].x = MAXSCREENX - PIPEWIDTH;
@@ -651,7 +829,6 @@ void initPipe(struct pipe *pipes){
 		pipes[i].oldx = pipes[0].x;
 		pipes[i].oldy = pipes[0].y;
 		pipes[i].active = 0;
-		pipes[i].gap = 40 / 2; // the gap between top & bottom pipe
 	}
 
 	pipes[0].active = 1;
@@ -660,23 +837,23 @@ void initPipe(struct pipe *pipes){
 // Initializer bird settings
 void initBird(){
 
-	bird[0].x = 35;
-	bird[0].y = 50;
+	bird.x = 35;
+	bird.y = 50;
 
-	bird[0].oldx = bird[0].x;
-	bird[0].oldy = bird[0].y;
+	bird.oldx = bird.x;
+	bird.oldy = bird.y;
 	
-	bird[0].jumpStrength = 4;
-	bird[0].gravity = -0.75;
-	bird[0].birdVelocity = 0.0;
+	bird.jumpStrength = 4;
+	bird.gravity = -0.75;
+	bird.birdVelocity = 0.0;
 }
 
 void activatePipes(struct pipe *pipes){
-	for (int i = 0; i < difficulty[0].pipesAmt; i++) {
-		int currPipe = (i + 1) % difficulty[0].pipesAmt;
-		if (pipes[i].active && pipes[currPipe].active == 0 && pipes[i].x <= (MAXSCREENX - difficulty[0].spawnGap - PIPEWIDTH)) {
+	for (int i = 0; i < difficulty.pipesAmt; i++) {
+		int currPipe = (i + 1) % difficulty.pipesAmt;
+		if (pipes[i].active && pipes[currPipe].active == 0 && pipes[i].x <= (MAXSCREENX - difficulty.spawnGap - PIPEWIDTH)) {
 			pipes[currPipe].active = 1;
-			pipes[currPipe].y = randomNum(difficulty[0].start, difficulty[0].end); // random y start position for each pipe after pipe#1
+			pipes[currPipe].y = randomNum(difficulty.start, difficulty.end); // random y start position for each pipe after pipe#1
 		}
 	}
 }
@@ -697,19 +874,19 @@ uint8_t rectsOverlap(uint16_t ax1, uint16_t ax2, uint16_t ay1, uint16_t ay2,
 // Function for checking if the bird colides with either pipe
 uint8_t checkCollision(struct pipe *pipes, uint16_t *counter){
 
-	uint8_t i = *counter % difficulty[0].pipesAmt; // next pipe number
+	uint8_t i = *counter % difficulty.pipesAmt; // next pipe number
 
-	int birdX1 = bird[0].x; // left x cords
-	int birdY1 = bird[0].y; // top y cords
+	int birdX1 = bird.x; // left x cords
+	int birdY1 = bird.y; // top y cords
 
-	int birdX2 = bird[0].x + BIRDWIDTH - 1; // right x cords
-	int birdY2 = bird[0].y + BIRDHEIGHT - 1; // bottom y cords
+	int birdX2 = bird.x + BIRDWIDTH - 1; // right x cords
+	int birdY2 = bird.y + BIRDHEIGHT - 1; // bottom y cords
 
 	int pipeX1 = pipes[i].x; // left x cords of pipes
-	int pipeY1 = pipes[i].y - pipes[i].gap + PIPEHEIGHT - 1; // bottom y cords of top pipe
+	int pipeY1 = pipes[i].y - difficulty.gap + PIPEHEIGHT - 1; // bottom y cords of top pipe
 
 	int pipeX2 = pipes[i].x + PIPEWIDTH - 1; // right x cords of pipes
-	int pipeY2 = pipes[i].y + pipes[i].gap; // top y cords of bottom pipe
+	int pipeY2 = pipes[i].y + difficulty.gap; // top y cords of bottom pipe
 
 
 	if (birdX1 > pipeX2) *counter += 1; // once bird passes pipe, increase counter & check collision for next pipe
@@ -882,7 +1059,7 @@ uint16_t getBackgroundPixel(uint16_t screenX, uint16_t screenY){
 		uint8_t index = screenX % bWidth; // column of the x pixel
 		uint16_t backgroundIndex = (screenY - bStart) * bWidth + index; // (index of y * row of y pixel) + column of x pixel
 
-		colour = backgroundIMG[backgroundIndex];
+		colour = images.backgroundIMG[backgroundIndex];
 	}
 
 	else if (screenY < bStart) colour = skyColour; // if y cords are more than background y, colour = sky 

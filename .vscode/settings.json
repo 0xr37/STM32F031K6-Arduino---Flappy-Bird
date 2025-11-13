@@ -6,5 +6,9 @@
         "serial.h": "c",
         "stddef.h": "c",
         "display.h": "c"
-    }
+    },
+    "workbench.localHistory.enabled": true,
+    "git.blame.statusBarItem.enabled": true,
+    "git.branchRandomName.enable": false,
+    "git.decorations.enabled": false
 }

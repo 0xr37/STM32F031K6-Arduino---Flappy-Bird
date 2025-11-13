@@ -47,5 +47,5 @@ def hexToWord(hex):
 
 if __name__ == "__main__":
 	#main()
-    hexToWord('FF9526')
+    hexToWord('9E9E9E')
 	

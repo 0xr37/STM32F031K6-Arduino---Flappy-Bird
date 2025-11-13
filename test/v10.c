@@ -34,11 +34,10 @@ Bigger random on the y position
 #define cornerSIZE 12
 #define cursorWidth 10
 #define cursorHeight 9
-#define GREEN 57383
-#define RED 7936
-#define WHITE 65535
-#define BLACK 0
-#define ORANGE 48932
+#define COLOUR_GREEN 57383
+#define COLOUR_RED 7936
+#define COLOUR_WHITE 65535
+#define COLOUR_BLACK 0
 #define OPTIONINDEX 2 // menu index for the options menu
 #define DIFFINDEX 1 // menu index for the difficulty menu
 #define MENUINDEX 0 // menu index for the main menu
@@ -82,8 +81,7 @@ struct difficulty{
 	uint8_t end;
 	float spawnGap;
 	uint16_t gap;
-	uint8_t active;
-	uint8_t oldActive;
+	uint16_t active;
 };
 
 struct flags{
@@ -109,13 +107,6 @@ struct menu{
 	const char **textUsed; // Pointer to the array of strings to be used
 	int sizeOfText; // Size of the menuText array
 	uint8_t changeMenu;
-};
-
-struct stats{
-	uint16_t highScore;
-	uint16_t score;
-	uint16_t totScore;
-	uint16_t amtCrashed;
 };
 
 void initClock(void);
@@ -153,9 +144,9 @@ void drawMenu(uint8_t i);
 int getFlagColour(int currMenu, int currSelection);
 
 void gameLoop();
-void gameOverText(struct pipe *pipes);
-void restartGame(struct pipe *pipes, uint8_t *gameState);
-int birdLogic(struct pipe *pipes, uint8_t *gameState);
+void gameOverText(struct pipe *pipes, uint16_t *counter);
+void restartGame(struct pipe *pipes, uint8_t *gameCrashed, uint16_t *counter);
+int birdLogic(struct pipe *pipes, uint16_t *counter, uint8_t *gameCrashed);
 
 
 void drawTopPipe(struct pipe *pipes, uint8_t i);
@@ -163,7 +154,7 @@ void drawBottomPipe(struct pipe *pipes, uint8_t i);
 void drawPipe(struct pipe *pipes);
 void endOfPipeCheck(struct pipe *pipes);
 void activatePipes(struct pipe *pipes);
-uint8_t checkCollision(struct pipe *pipes);
+uint8_t checkCollision(struct pipe *pipes, uint16_t *counter);
 uint8_t rectsOverlap(uint16_t ax1, uint16_t ax2, uint16_t ay1, uint16_t ay2, uint16_t bx1, uint16_t bx2, uint16_t by1, uint16_t by2);
 
 void fillBackground(uint16_t x,uint16_t y,uint16_t width, uint16_t height);
@@ -179,7 +170,6 @@ struct bird bird;
 struct menu menu[5];
 struct flags flags;
 struct images images;
-struct stats stats;
 
 
 const uint16_t birdUp[]=
@@ -266,7 +256,7 @@ int main()
 	initDifficulty();
 
 	delay(500);
-
+	// gameLoop();
 	while (1){
 		initDayNight();
 		initBackground();
@@ -351,36 +341,22 @@ void initMenu(){
 
 int getFlagColour(int currMenu, int currSelection){
 
-	if (currMenu == 2 && (menu[currMenu].oldSelection < menu[currMenu].sizeOfText)){
-
-		switch (currSelection){
-			case 0: return flags.gameOverText ? GREEN : RED;
-			case 1: return flags.dayNight ? GREEN : RED;
-			case 2: return flags.soundOnOff ? GREEN : RED;
-			case 3: return flags.flappingAnim ? GREEN : RED;
-			default: return WHITE;
-		}
-	}
-	else if (currMenu == 1 && (menu[currMenu].oldSelection < menu[currMenu].sizeOfText)){
-
-		// if (currSelection != difficulty.active) return WHITE;
-
-		switch (currSelection){
-			case 0: return GREEN;
-			case 1: return ORANGE;
-			case 2: return RED;
-			default: return WHITE;
-		}
+	if (currMenu != 2 && !(menu[currMenu].oldSelection >= 4)){
+		return COLOUR_WHITE;
 	}
 
-	return WHITE;
+	switch (currSelection){
+		case 0: return flags.gameOverText ? COLOUR_GREEN : COLOUR_RED;
+		case 1: return flags.dayNight ? COLOUR_GREEN : COLOUR_RED;
+		case 2: return flags.soundOnOff ? COLOUR_GREEN : COLOUR_RED;
+		case 3: return flags.flappingAnim ? COLOUR_GREEN : COLOUR_RED;
+		default: return COLOUR_WHITE;
+	}
 }
 
 
 // Function for drawing the menu sprites & text
 void drawMenu(uint8_t i){
-
-	uint16_t colour = WHITE;
 
 	// Create menu block
 	fillRectangle(menu[i].menuX, menu[i].menuY, menu[i].menuWidth, menu[i].menuHeight, 0); // menu size of colour 0 (black)
@@ -395,12 +371,9 @@ void drawMenu(uint8_t i){
 
 	// Draw each string from menuText array 
 	for (int j = 0; j<menu[i].sizeOfText; j++){
-		colour = getFlagColour(i, j);
+		uint16_t colour = getFlagColour(i, j);
 		printText(menu[i].textUsed[j], menu[i].baseX, menu[i].baseY + (menu[i].textIncrement * j), colour, 0); // baseY+(textIncrement*i)
-		//delay(500);
 	}
-
-	
 }
 
 // For navigation around the menu
@@ -410,34 +383,22 @@ void menuNavigation(uint8_t i){
 
 		uint16_t oldY = menu[i].baseY + menu[i].textIncrement * menu[i].oldSelection;
 		uint16_t newY = menu[i].baseY + menu[i].textIncrement * menu[i].menuSelection;
+		// uint16_t fillWidth = menu[i].menuX + menu[i].menuWidth - cornerSIZE/2 - menu[i].baseX;
 		uint16_t textWidth = menu[i].menuWidth - 3 - cornerSIZE;
+		// menu[i].baseX = menu[i].baseX - menu[i].cursorGap;
 
 		uint16_t colour = 65535;
-		uint16_t backColour = 0; // grey = 54172
 
 		// Pick colour for each option
 		colour = getFlagColour(i, menu[i].oldSelection);
 
-		if (i == 1){
-			if (menu[i].oldSelection == difficulty.active){
-				backColour = 65535;
-			}
-		}
-
 		// Draw over the old selection & redraw text
+		//fillRectangle(menu[i].baseX, oldY-1, textWidth, menu[i].textHeight+2, 0);
 		fillRectangle(menu[i].baseX - menu[i].cursorGap, oldY-1, textWidth, menu[i].textHeight+2, 0);
-		printText(menu[i].textUsed[menu[i].oldSelection], menu[i].baseX, oldY, colour, backColour);
+		printText(menu[i].textUsed[menu[i].oldSelection], menu[i].baseX, oldY, colour, 0);
 
 		// Keep track of the old selection for the next time the code block runs
 		menu[i].oldSelection = menu[i].menuSelection; 
-
-		backColour = 0;
-
-		if (i == 1){
-			if (menu[i].menuSelection == difficulty.active){
-				backColour = 65535;
-			}
-		}
 
 		// Get new colour for each option
 		colour = getFlagColour(i, menu[i].oldSelection);
@@ -445,7 +406,7 @@ void menuNavigation(uint8_t i){
 		// Draw over new selection, draw cursor then draw new text with shifted x position
 		fillRectangle(menu[i].baseX, newY, textWidth, menu[i].textHeight, 0);
 		putImage(menu[i].baseX - menu[i].cursorGap, newY-1, cursorWidth, cursorHeight, cursor, 0, 0);
-		printText(menu[i].textUsed[menu[i].menuSelection], menu[i].baseX + cursorWidth + 2, newY, colour, backColour);
+		printText(menu[i].textUsed[menu[i].menuSelection], menu[i].baseX + cursorWidth + 2, newY, colour, 0);
 
 		menu[i].changeMenu = 0;
 	}
@@ -468,64 +429,7 @@ void menuNavigation(uint8_t i){
 // Function for redrawing a selected text with a different colour, i.e. turn off sound, sound colour green -> red; redraw sound text
 void updateOption(int currMenu, int selection){
 	uint16_t colour = getFlagColour(currMenu, selection);
-	
-	printText(menu[currMenu].textUsed[selection], menu[currMenu].baseX + cursorWidth + 2, menu[currMenu].baseY + menu[currMenu].textIncrement * selection, colour, 0);
-}
-
-void updateDiff(int currMenu, int selection){
-	uint16_t colour = getFlagColour(currMenu, selection);
-	
-	printText(menu[currMenu].textUsed[selection], menu[currMenu].baseX, menu[currMenu].baseY + menu[currMenu].textIncrement * selection, colour, 0);
-}
-
-void difficultyMenu(){
-	menu[DIFFINDEX].changeMenu = 1;
-	menu[DIFFINDEX].menuSelection = difficulty.active;
-	
-	while(1){
-		menuNavigation(DIFFINDEX);
-
-		if (enterPressedOnce() || rightPressed() || leftPressed()){
-			switch (menu[DIFFINDEX].menuSelection){
-				case 0: // Easy
-					difficulty.oldActive = difficulty.active;
-					difficulty.active = 0;
-					updateOption(DIFFINDEX, difficulty.active);
-					updateDiff(DIFFINDEX, difficulty.oldActive);
-
-					menu[DIFFINDEX].changeMenu = 1;
-
-					delay(200);
-					continue;
-				case 1: // Medium
-					difficulty.oldActive = difficulty.active;
-					difficulty.active = 1;
-					updateOption(DIFFINDEX, difficulty.active);
-					updateDiff(DIFFINDEX, difficulty.oldActive);
-
-					menu[DIFFINDEX].changeMenu = 1;
-
-					delay(200);
-					continue;
-				case 2: // Hard
-					difficulty.oldActive = difficulty.active;
-					difficulty.active = 2;
-					updateOption(DIFFINDEX, difficulty.active);
-					updateDiff(DIFFINDEX, difficulty.oldActive);
-
-					menu[DIFFINDEX].changeMenu = 1;
-
-					delay(200);
-					continue;
-				case 3: // Go back
-					return;
-				default:
-					break;
-			}
-		}
-
-		delay(50);
-	}
+	printText(menu[currMenu].textUsed[menu[currMenu].menuSelection], menu[currMenu].baseX + cursorWidth + 2, menu[currMenu].baseY + menu[currMenu].textIncrement * selection, colour, 0);
 }
 
 void optionsMenu(){
@@ -567,7 +471,38 @@ void optionsMenu(){
 	}
 }
 
+void difficultyMenu(){
+	menu[DIFFINDEX].changeMenu = 1;
+	updateOption(DIFFINDEX, difficulty.active);
+	
+	while(1){
+		menuNavigation(DIFFINDEX);
 
+		if (enterPressedOnce() || rightPressed() || leftPressed()){
+			switch (menu[DIFFINDEX].menuSelection){
+				case 0: // Easy
+					// flags.gameOverText ^= 1;
+					// updateOption(OPTIONINDEX, 0);
+					delay(200);
+					continue;
+				case 1: // Medium
+					// flags.dayNight ^= 1;
+					// updateOption(OPTIONINDEX, 1);
+					delay(200);
+					continue;
+				case 2: // Hard
+
+					continue;
+				case 3: // Go back
+					return;
+				default:
+					break;
+			}
+		}
+
+		delay(50);
+	}
+}
 
 // Function for the main menu 
 void menuInterface(){
@@ -626,7 +561,7 @@ void initDayNight(){
 }
 
 // Scrolling text for when bird crashes
-void gameOverText(struct pipe *pipes){
+void gameOverText(struct pipe *pipes, uint16_t *counter){
 
 	if (!flags.gameOverText){
 		return;
@@ -650,7 +585,7 @@ void gameOverText(struct pipe *pipes){
 
 		putImageV2(bird.x, bird.y, BIRDWIDTH, BIRDHEIGHT, images.birdIMG, 0, 0);
 		drawPipe(pipes);
-		printNumber(stats.score, 10, 10, 65535, 0);
+		printNumber(*counter, 10, 10, 65535, 0);
 		addBoundingBox(10, 10, 0, 2, 1);
 
 		// serves as a speed up option, rather than waiting for text to stop scrolling, press enter to get back into game
@@ -658,7 +593,7 @@ void gameOverText(struct pipe *pipes){
 			fillBackground(x, i, widthOfText, 14);
 			putImageV2(bird.x, bird.y, BIRDWIDTH, BIRDHEIGHT, images.birdIMG, 0, 0);
 			drawPipe(pipes);
-			printNumber(stats.score, 10, 10, 65535, 0);
+			printNumber(*counter, 10, 10, 65535, 0);
 			addBoundingBox(10, 10, 0, 2, 1);
 			printTextX2("Game Over", x, finalY, 5920, 0, 0);
 			delay(100);
@@ -672,12 +607,12 @@ void gameOverText(struct pipe *pipes){
 	fillBackground(x, oldy+14-speedOfText, widthOfText, 14);
 	putImageV2(bird.x, bird.y, BIRDWIDTH, BIRDHEIGHT, images.birdIMG, 0, 0);
 	drawPipe(pipes);
-	printNumber(stats.score, 10, 10, 65535, 0);
+	printNumber(*counter, 10, 10, 65535, 0);
 	addBoundingBox(10, 10, 0, 2, 1);
 	printTextX2("Game Over", x, i, 5920, 0, 0);
 }
 
-int birdLogic(struct pipe *pipes, uint8_t *gameState){
+int birdLogic(struct pipe *pipes, uint16_t *counter, uint8_t *gameCrashed){
 
 	if(enterPressedOnce()){
 		bird.birdVelocity = bird.jumpStrength;
@@ -693,10 +628,10 @@ int birdLogic(struct pipe *pipes, uint8_t *gameState){
 		else images.birdIMG = birdUp;
 	}
 
-	if (checkCollision(pipes)){
+	if (checkCollision(pipes, counter)){
 		// Gets re-rendered in the gameOver function, but if gameOver flag is off, no need to remove bird off screen
 		if (flags.gameOverText) fillBackground(bird.oldx,bird.oldy,BIRDWIDTH,BIRDHEIGHT);
-		*gameState = 1;
+		*gameCrashed = 1;
 		return 1;
 	}
 
@@ -709,7 +644,7 @@ int birdLogic(struct pipe *pipes, uint8_t *gameState){
 		
 	}
 	else{
-		*gameState = 1;
+		*gameCrashed = 1;
 	}
 
 	return 0;
@@ -728,20 +663,14 @@ void drawCrashedBird(){
 	}
 }
 
-void restartGame(struct pipe *pipes, uint8_t *gameState){
+void restartGame(struct pipe *pipes, uint8_t *gameCrashed, uint16_t *counter){
 	initBackground();
 	delay(50);
 	initPipe(pipes);
 	initBird();
 
-	*gameState = 0;
-}
-
-void updateStats(){
-	if (stats.highScore < stats.score) stats.highScore = stats.score;
-	stats.amtCrashed += 1;
-	stats.totScore += stats.score;
-	stats.score = 0;
+	*gameCrashed = 0;
+	*counter = 0;
 }
 
 // Main game loop
@@ -750,45 +679,43 @@ void gameLoop(){
 	initPipe(pipes);
 	initBird();
 
-	uint8_t gameState = 0;
+	uint8_t gameCrashed = 0;
+	uint16_t counter = 0;
 
 	static uint8_t runOnce = 0;
 
 	
 	while(1)
 	{
-		while(gameState){
+		while(gameCrashed){
 			if (!runOnce){
-				gameOverText(pipes);
+				gameOverText(pipes, &counter);
 				runOnce = 1;
 			}
 
 			if(enterPressedOnce()){
-				restartGame(pipes, &gameState);
+				restartGame(pipes, &gameCrashed, &counter);
 				runOnce = 0;
 				break;
 			}
 
 			if (downPressed()){
-				restartGame(pipes, &gameState);
+				restartGame(pipes, &gameCrashed, &counter);
 				runOnce = 0;
 				return;
 			}
 		}
 
 
-		if(!gameState){
+		if(!gameCrashed){
 			drawPipe(pipes);
 			endOfPipeCheck(pipes);
 			activatePipes(pipes);
 
-			printNumber(stats.score, 10, 10, 65535, 0);
+			printNumber(counter, 10, 10, 65535, 0);
 			addBoundingBox(10, 10, 0, 2, 1);
 
-			if (birdLogic(pipes, &gameState)){
-				updateStats();
-				continue;
-			}
+			if (birdLogic(pipes, &counter, &gameCrashed)) continue;
 
 		}
 		else{
@@ -807,7 +734,6 @@ void initDifficulty(){
 	difficulty.spawnGap = 42;
 	difficulty.gap = 40 /2; // the gap between top and bottom pipe
 	difficulty.active = 0;
-	difficulty.oldActive = 0;
 }
 
 /* Background is a seemless image of width MAXSCREENX / 4.
@@ -930,9 +856,9 @@ uint8_t rectsOverlap(uint16_t ax1, uint16_t ax2, uint16_t ay1, uint16_t ay2,
 }
 
 // Function for checking if the bird colides with either pipe
-uint8_t checkCollision(struct pipe *pipes){
+uint8_t checkCollision(struct pipe *pipes, uint16_t *counter){
 
-	uint8_t i = stats.score % difficulty.pipesAmt; // next pipe number
+	uint8_t i = *counter % difficulty.pipesAmt; // next pipe number
 
 	int birdX1 = bird.x; // left x cords
 	int birdY1 = bird.y; // top y cords
@@ -947,7 +873,7 @@ uint8_t checkCollision(struct pipe *pipes){
 	int pipeY2 = pipes[i].y + difficulty.gap; // top y cords of bottom pipe
 
 
-	if (birdX1 > pipeX2) stats.score += 1; // once bird passes pipe, increase counter & check collision for next pipe
+	if (birdX1 > pipeX2) *counter += 1; // once bird passes pipe, increase counter & check collision for next pipe
 
 	if (rectsOverlap(birdX1, birdX2, birdY1, birdY2, pipeX1, pipeX2, MINSCREENX, pipeY1)) return 1;
 
@@ -1004,13 +930,14 @@ void putImageV2(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const u
 				offset=y*width;
 				for (x = 0; x < width; x++)
 				{
-					Colour = Image[offset+x];
+						Colour = Image[offset+x];
 
-					if (Colour == 5536) { // 5536 = word value of the background pixel within any of the image arrays
-						Colour = getBackgroundPixel(baseX + x, baseY + y); // get background pixel if the current pixel is a background pixel
-					}
+						if (Colour == 5536) { // 5536 = word value of the background pixel within any of the image arrays
+							Colour = getBackgroundPixel(baseX + x, baseY + y); // get background pixel if the current pixel is a background pixel
+						}
 
-					transferSPI16(Colour);
+						transferSPI16(Colour);
+						
 				}
 			}
 		}
@@ -1121,6 +1048,8 @@ uint16_t getBackgroundPixel(uint16_t screenX, uint16_t screenY){
 
 	else if (screenY < bStart) colour = skyColour; // if y cords are more than background y, colour = sky 
 	else if (screenY >= bStart + bHeight) colour = soilColour; // if y cords are less than background y, colour = soil
+
+	else colour = 0;
 
 	return colour;
 }

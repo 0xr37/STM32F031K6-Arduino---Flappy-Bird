@@ -39,6 +39,7 @@ Bigger random on the y position
 #define WHITE 65535
 #define BLACK 0
 #define ORANGE 48932
+#define STATSINDEX 3 // menu index for the stats menu
 #define OPTIONINDEX 2 // menu index for the options menu
 #define DIFFINDEX 1 // menu index for the difficulty menu
 #define MENUINDEX 0 // menu index for the main menu
@@ -237,9 +238,10 @@ const uint16_t corner[]=
 	5536,5536,5536,5536,0,0,0,20083,0,0,20083,20083,5536,5536,5536,0,0,20083,20083,0,20083,20083,0,0,5536,5536,0,0,0,0,0,20083,20083,0,20083,20083,5536,0,0,20083,20083,0,20083,20083,0,20083,20083,0,0,0,0,20083,0,20083,0,0,20083,20083,0,0,0,20083,0,0,20083,0,0,0,0,0,0,0,0,20083,0,20083,0,0,0,0,0,0,0,0,20083,0,20083,20083,0,0,0,0,0,0,0,0,0,20083,20083,0,20083,0,0,0,0,0,0,0,0,20083,0,20083,20083,0,0,0,0,0,0,0,20083,0,20083,20083,0,0,0,0,0,0,0,0,20083,0,20083,0,0,0,0,0,0,0,0,0,
 };
 
-const char *menuText[] = {"Play", "Difficulty", "Options", "Info"};
+const char *menuText[] = {"Play", "Difficulty", "Options", "Stats"};
 const char *optionsText[] = {"Game over text", "Night Theme", "Sound", "Flapping anim", "Go Back"};
 const char *difficultyText[] = {"Easy", "Medium", "Hard", "Go Back"};
+const char *statsText[] = {"High Score", "Total Score", "Score", "Amt Crashed", "Go Back"};
 
 uint16_t skyColour = 2510;
 uint16_t soilColour = 12562;
@@ -344,6 +346,22 @@ void initMenu(){
 	menu[OPTIONINDEX].sizeOfText = sizeof(optionsText)/sizeof(optionsText[0]);
 
 	// 3 - Info
+	menu[STATSINDEX].menuSelection = 0;
+	menu[STATSINDEX].oldSelection = 0;
+	menu[STATSINDEX].menuX = 0;
+	menu[STATSINDEX].menuY = 0;
+	menu[STATSINDEX].menuWidth = MAXSCREENX;
+	menu[STATSINDEX].menuHeight = MAXSCREENY;
+	menu[STATSINDEX].baseX = menu[STATSINDEX].menuX + cornerSIZE;
+	menu[STATSINDEX].baseY = menu[STATSINDEX].menuY + cornerSIZE;
+	menu[STATSINDEX].cursorGap = 5;
+	menu[STATSINDEX].textHeight = 7;
+	menu[STATSINDEX].textGap = 24;
+	menu[STATSINDEX].textIncrement = menu[STATSINDEX].textHeight + menu[STATSINDEX].textGap;
+	menu[STATSINDEX].textGap = 4;
+	menu[STATSINDEX].textUsed = statsText;
+	menu[STATSINDEX].sizeOfText = sizeof(statsText)/sizeof(statsText[0]);
+
 
 	// 4 - Game Over
 }
@@ -351,8 +369,20 @@ void initMenu(){
 
 int getFlagColour(int currMenu, int currSelection){
 
-	if (currMenu == 2 && (menu[currMenu].oldSelection < menu[currMenu].sizeOfText)){
+	if (currMenu == DIFFINDEX && (menu[currMenu].oldSelection < menu[currMenu].sizeOfText)){
 
+		switch (currSelection){
+			case 0: return GREEN;
+			case 1: return ORANGE;
+			case 2: return RED;
+			default: return WHITE;
+		}
+
+		
+	}
+	else if (currMenu == OPTIONINDEX && (menu[currMenu].oldSelection < menu[currMenu].sizeOfText)){
+
+		// if (currSelection != difficulty.active) return WHITE;
 		switch (currSelection){
 			case 0: return flags.gameOverText ? GREEN : RED;
 			case 1: return flags.dayNight ? GREEN : RED;
@@ -360,15 +390,14 @@ int getFlagColour(int currMenu, int currSelection){
 			case 3: return flags.flappingAnim ? GREEN : RED;
 			default: return WHITE;
 		}
+		
 	}
-	else if (currMenu == 1 && (menu[currMenu].oldSelection < menu[currMenu].sizeOfText)){
-
-		// if (currSelection != difficulty.active) return WHITE;
-
+	else if (currMenu == STATSINDEX && (menu[currMenu].oldSelection < menu[currMenu].sizeOfText)){
 		switch (currSelection){
-			case 0: return GREEN;
-			case 1: return ORANGE;
-			case 2: return RED;
+			case 0: return ORANGE;
+			case 1: return GREEN;
+			case 2: return BLUE;
+			case 3: return RED;
 			default: return WHITE;
 		}
 	}
@@ -397,17 +426,13 @@ void drawMenu(uint8_t i){
 	for (int j = 0; j<menu[i].sizeOfText; j++){
 		colour = getFlagColour(i, j);
 		printText(menu[i].textUsed[j], menu[i].baseX, menu[i].baseY + (menu[i].textIncrement * j), colour, 0); // baseY+(textIncrement*i)
-		//delay(500);
 	}
-
-	
 }
 
 // For navigation around the menu
 void menuNavigation(uint8_t i){
 
 	if (menu[i].changeMenu){
-
 		uint16_t oldY = menu[i].baseY + menu[i].textIncrement * menu[i].oldSelection;
 		uint16_t newY = menu[i].baseY + menu[i].textIncrement * menu[i].menuSelection;
 		uint16_t textWidth = menu[i].menuWidth - 3 - cornerSIZE;
@@ -463,6 +488,43 @@ void menuNavigation(uint8_t i){
 		menu[i].changeMenu = 1;
 		delay(200);
 	}	
+}
+
+void drawStats(){
+	
+}
+
+void statsMenu(){
+	menu[STATSINDEX].changeMenu = 1; // Force the arrow to get drawn
+	while (1){
+
+		menuNavigation(STATSINDEX);
+
+		if (enterPressedOnce() || rightPressed() || leftPressed()){
+			switch (menu[STATSINDEX].menuSelection){
+				case 0: // Game over text
+					delay(200);
+					continue;
+				case 1: // Day Night
+
+					delay(200);
+					continue;
+				case 2: // Sound
+
+					delay(200);
+					continue;
+				case 3: // Flapping anim
+					delay(200);
+					continue;;
+				case 4: // Go back
+					return;
+				default:
+					break;
+			}
+		}
+
+		delay(50);
+	}
 }
 
 // Function for redrawing a selected text with a different colour, i.e. turn off sound, sound colour green -> red; redraw sound text
@@ -569,6 +631,7 @@ void optionsMenu(){
 
 
 
+
 // Function for the main menu 
 void menuInterface(){
 	menu[MENUINDEX].changeMenu = 1;
@@ -597,6 +660,8 @@ void menuInterface(){
 					delay(100);
 					return;
 				case 3: // Info
+					drawMenu(3);
+					statsMenu();
 					return;
 				
 				default:

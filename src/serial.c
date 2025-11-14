@@ -76,12 +76,12 @@ void printDecimal(int32_t Value)
 	eputs(DecimalString);
 }
 
-void printOutToTerminal(uint8_t i, int *asciiArt){
+void printOutToTerminal(uint8_t i, int asciiArt){
 	if (!asciiArt){
 		return;
 	}
 	switch(i){
-		case 0:
+		case 0: // Flappy Bird
 			eputs(" ________  __                                                _______   __                  __ \n\r");
 			eputs("|        \\|  \\                                              |       \\ |  \\                |  \\\n\r");
 			eputs("| $$$$$$$$| $$  ______    ______    ______   __    __       | $$$$$$$\\ \\$$  ______    ____| $$\n\r");
@@ -95,7 +95,7 @@ void printOutToTerminal(uint8_t i, int *asciiArt){
 			eputs("                        | $$      | $$       \\$$    $$                                        \n\r");
 			eputs("                         \\$$       \\$$        \\$$$$$$                                         \n\r");
 			return;
-		case 1:
+		case 1: // easy
 			eputs("  ______    ______    _______  __    __ \n\r");
 			eputs(" /      \\  |      \\  /       \\|  \\  |  \\\n\r");
 			eputs("|  $$$$$$\\  \\$$$$$$\\|  $$$$$$$| $$  | $$\n\r");
@@ -107,7 +107,7 @@ void printOutToTerminal(uint8_t i, int *asciiArt){
 			eputs("                               \\$$    $$\n\r");
 			eputs("                                \\$$$$$$ \n\r");
 			return;
-		case 2:
+		case 2: // medium
 			eputs("                               __  __                         \n\r");
 			eputs("                              |  \\|  \\                        \n\r");
 			eputs(" ______ ____    ______    ____| $$ \\$$ __    __  ______ ____  \n\r");
@@ -118,7 +118,7 @@ void printOutToTerminal(uint8_t i, int *asciiArt){
 			eputs("| $$ | $$ | $$ \\$$     \\ \\$$    $$| $$ \\$$    $$| $$ | $$ | $$\n\r");
 			eputs(" \\$$  \\$$  \\$$  \\$$$$$$$  \\$$$$$$$ \\$$  \\$$$$$$  \\$$  \\$$  \\$$\n\r");
 			return;
-		case 3:
+		case 3: // hard
 			eputs("  __                                  __ \n\r");
 			eputs("|  \\                                |  \\\n\r");
 			eputs("| $$____    ______    ______    ____| $$\n\r");
@@ -129,7 +129,7 @@ void printOutToTerminal(uint8_t i, int *asciiArt){
 			eputs("| $$  | $$ \\$$    $$| $$       \\$$    $$\n\r");
 			eputs(" \\$$   \\$$  \\$$$$$$$ \\$$        \\$$$$$$$\n\r");
 			return;
-		case 4:
+		case 4: // back
 			eputs(" __                            __       \n\r");
 			eputs("|  \\                          |  \\      \n\r");
 			eputs("| $$____    ______    _______ | $$   __ \n\r");
@@ -140,7 +140,7 @@ void printOutToTerminal(uint8_t i, int *asciiArt){
 			eputs("| $$    $$ \\$$    $$ \\$$     \\| $$  \\$$\\\n\r");
 			eputs("\\$$$$$$$   \\$$$$$$$  \\$$$$$$$ \\$$   \\$$\n\r");
 			return;
-		case 5:
+		case 5: // you died
 			eputs(" __      __   ______   __    __        _______   ______  ________  _______  \n\r");
 			eputs("|  \\    /  \\ /      \\ |  \\  |  \\      |       \\ |      \\|        \\|       \\ \n\r");
 			eputs(" \\$$\\  /  $$|  $$$$$$\\| $$  | $$      | $$$$$$$\\ \\$$$$$$| $$$$$$$$| $$$$$$$\\\n\r");
@@ -152,7 +152,7 @@ void printOutToTerminal(uint8_t i, int *asciiArt){
 			eputs("     \\$$      \\$$$$$$   \\$$$$$$        \\$$$$$$$  \\$$$$$$ \\$$$$$$$$ \\$$$$$$$ \n\r");
 			eputs("                                                                            \n\r");
 			return;
-		case 6:
+		case 6: // Select Difficulty 1-3
 			eputs("                    ______   ________  __        ________   ______  ________                   \n\r");
 			eputs("                   /      \\ |        \\|  \\      |        \\ /      \\|        \\                  \n\r");
 			eputs("                  |  $$$$$$\\| $$$$$$$$| $$      | $$$$$$$$|  $$$$$$\\\\$$$$$$$$                  \n\r");

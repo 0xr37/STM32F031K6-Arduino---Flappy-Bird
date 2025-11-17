@@ -1,5 +1,4 @@
 #include <stm32f031x6.h>
-#include "musical_notes.h"
 
 void pinMode(GPIO_TypeDef *Port, uint32_t BitNumber, uint32_t Mode);
 void playNote(uint32_t Freq)
@@ -21,7 +20,7 @@ void initSound()
 	TIM14->CCER |= (1 << 0);
 	TIM14->PSC = 48000000UL/65536UL; // Use the prescaled to set the counter running at 65536 Hz
 									 // yields maximum frequency of 21kHz when ARR = 2;
-	TIM14->ARR = (48000000UL/(uint32_t)(TIM14->PSC))/((uint32_t)C4);
+	TIM14->ARR = (48000000UL/(uint32_t)(TIM14->PSC))/((uint32_t)262);
 	TIM14->CCR1 = TIM14->ARR/2;	
 	TIM14->CNT = 0;
 }

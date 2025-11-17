@@ -527,7 +527,7 @@ void printTextX2(const char *Text, uint16_t x, uint16_t y, uint16_t ForeColour, 
         }
 
         if (transperncy){
-            putImageV2(x, y, FONT_WIDTH*Scale, FONT_HEIGHT*Scale, (uint16_t *)TextBox);
+            putImageV2(x, y, FONT_WIDTH*Scale, FONT_HEIGHT*Scale, (uint16_t *)TextBox, 0, 0);
 
             if (Index != len -1){
                 fillBackground(x+FONT_WIDTH*Scale, y, 2, FONT_HEIGHT*Scale);

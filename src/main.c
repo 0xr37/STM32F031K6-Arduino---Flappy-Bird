@@ -47,6 +47,7 @@ Bigger random on the y position
 #define OPTIONINDEX 2 // menu index for the options menu
 #define DIFFINDEX 1 // menu index for the difficulty menu
 #define MENUINDEX 0 // menu index for the main menu
+#define D2 73
 
 
 
@@ -137,16 +138,13 @@ void setupIO();
 void enablePullUp(GPIO_TypeDef *Port, uint32_t BitNumber);
 void pinMode(GPIO_TypeDef *Port, uint32_t BitNumber, uint32_t Mode);
 volatile uint32_t milliseconds;
-
 uint8_t enterPressed();
 uint8_t upPressed();
 uint8_t downPressed();
 uint8_t leftPressed();
 uint8_t rightPressed();
 uint8_t anyButtonPressed();
-
 uint8_t enterPressedOnce();
-
 void initPipe(struct pipe *pipes);
 void initBird(void);
 void initBackground();
@@ -155,20 +153,16 @@ void initDayNight();
 void initMenu();
 void initFlags();
 void initImages();
-
 void menuInterface();
 void optionsMenu();
 void updateOption(int currMenu, int currSelection);
 void menuNavigation(uint8_t i);
 void drawMenu(uint8_t i);
 int getFlagColour(int currMenu, int currSelection);
-
 void gameLoop();
 void gameOverText(struct pipe *pipes);
 void restartGame(struct pipe *pipes);
 int birdLogic(struct pipe *pipes);
-
-
 void drawTopPipe(struct pipe *pipes, uint8_t i);
 void drawBottomPipe(struct pipe *pipes, uint8_t i);
 void drawPipe(struct pipe *pipes);
@@ -177,7 +171,6 @@ void activatePipes(struct pipe *pipes);
 uint8_t checkCollision(struct pipe *pipes);
 void updateDifficulty(uint8_t i);
 uint8_t rectsOverlap(uint16_t ax1, uint16_t ax2, uint16_t ay1, uint16_t ay2, uint16_t bx1, uint16_t bx2, uint16_t by1, uint16_t by2);
-
 void fillBackground(uint16_t x,uint16_t y,uint16_t width, uint16_t height);
 void putImageV2(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t *Image, uint8_t hOrientation, uint8_t vOrientation);
 void addBoundingBox(uint8_t x, uint16_t y, uint16_t colour, uint8_t thickness, uint8_t sizeOfprintText);
@@ -185,8 +178,12 @@ uint16_t getBackgroundPixel(uint16_t screenX, uint16_t screenY);
 void putPipe(uint16_t x, uint16_t y, uint16_t width, uint16_t height, const uint16_t *Image);
 void drawCrashedBird();
 uint8_t serialInputOnce();
-
-
+void birdFlappingMenu(int *imgCounter, uint8_t *changeImg);
+void difficultyMenu();
+void statsMenu();
+void updateDiff(int currMenu, int selection);
+void drawStats(uint8_t i);
+void updateStats();
 struct difficulty difficulty;
 struct bird bird;
 struct menu menu[5];
